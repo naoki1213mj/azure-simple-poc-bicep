@@ -216,13 +216,43 @@ azd down
 | **Operational Excellence** | IaC (Bicep+AVM), CI/CD (OIDC), Log Analytics |
 | **Performance** | GPU VM (CUDA), NAT GW, AGW v2 |
 
-## CI/CD
+## CI/CD (DevSecOps)
 
-| Workflow | Trigger | Action |
-|---|---|---|
-| validate | PR → main | Bicep build + What-If → PR comment |
-| deploy | main push | Auto deploy to dev |
-| deploy | manual | Prod deploy (approval required) |
+GitHub Actions pipelines with Shift-Left security — catching issues at PR stage.
+
+### Pipeline Overview
+
+```
+PR ──→ CI (ci.yml) ──→ Merge ──→ CD (cd.yml)
+         │                         │
+         ├─ 🔍 Bicep Lint          ├─ 🚀 dev auto-deploy + Smoke Test
+         ├─ 🛡️ PSRule (WAF/CAF)   └─ 🚀 prod manual deploy
+         ├─ 🔐 Gitleaks                 ├─ What-If preview
+         └─ 📋 What-If → PR comment    ├─ Approval gate ⏸️
+                                        └─ Smoke Test
+```
+
+### Workflow Details
+
+| File | Trigger | Job | Description |
+|---|---|---|---|
+| `ci.yml` | PR → main | 🔍 Lint | Bicep syntax + SARIF report |
+| | | 🛡️ Security | PSRule for Azure (WAF/CAF compliance) |
+| | | 🔐 Secrets | Gitleaks (secret leak detection) |
+| | | 📋 What-If | Change preview as PR comment |
+| `cd.yml` | main push | 🚀 dev | Auto deploy + Smoke Test |
+| | manual | 🚀 prod | Approval → deploy + Smoke Test |
+
+### Security Measures
+
+| Measure | Description |
+|---|---|
+| **OIDC Auth** | No long-lived credentials. Federated Identity for Azure login |
+| **ID Double Masking** | `::add-mask::` + `sed` to hide Sub/Tenant/Client IDs |
+| **PSRule** | Detect WAF/CAF violations at PR stage |
+| **Gitleaks** | Detect passwords, API keys in code |
+| **Approval Gate** | prod deploy requires GitHub Environment reviewer approval |
+| **Concurrency** | Prevents parallel deploys to same environment |
 
 ## Directory Structure
 
@@ -242,7 +272,9 @@ azd down
 ├── scripts/                      # azd hooks
 ├── docs/                         # Operations guides
 │   └── GUIDE.md                  # Document index
-└── .github/workflows/            # CI/CD
+└── .github/workflows/            # CI/CD (DevSecOps)
+    ├── ci.yml                    # PR: Lint + PSRule + Gitleaks + What-If
+    └── cd.yml                    # Deploy: dev (auto) / prod (approval)
 ```
 
 ## Naming Conventions

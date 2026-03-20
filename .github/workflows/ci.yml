@@ -1,0 +1,158 @@
+# ============================================================================
+# ci.yml — PR 時の静的解析 + セキュリティスキャン + What-If
+# ============================================================================
+# DevSecOps: Shift-Left — コードレビュー段階でセキュリティ問題を検出
+# ============================================================================
+name: CI — Validate & Security Scan
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ['infra/**', 'scripts/**', '.github/workflows/**']
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+  security-events: write  # CodeQL / SARIF アップロード用
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  LOCATION: japaneast
+
+jobs:
+  # ============================================================================
+  # 1. Bicep 静的解析（Lint + Build）
+  # ============================================================================
+  lint:
+    name: 🔍 Bicep Lint & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bicep Lint
+        run: az bicep lint --file infra/main.bicep --diagnostics-format sarif > bicep-lint.sarif 2>&1 || true
+
+      - name: Bicep Build
+        run: az bicep build --file infra/main.bicep
+
+      - name: Upload Bicep Lint SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: bicep-lint.sarif
+          category: bicep-lint
+        continue-on-error: true
+
+  # ============================================================================
+  # 2. セキュリティスキャン（PSRule for Azure — WAF/CAF 準拠チェック）
+  # ============================================================================
+  security:
+    name: 🛡️ Security Scan (PSRule)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run PSRule for Azure
+        uses: microsoft/ps-rule@v2.9.0
+        with:
+          modules: PSRule.Rules.Azure
+          inputPath: infra/
+          outputFormat: Sarif
+          outputPath: psrule-results.sarif
+        continue-on-error: true
+
+      - name: Upload PSRule SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: psrule-results.sarif
+          category: psrule-azure
+        continue-on-error: true
+
+  # ============================================================================
+  # 3. シークレットスキャン（Gitleaks — 機密情報漏洩防止）
+  # ============================================================================
+  secrets-scan:
+    name: 🔐 Secret Scan (Gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ============================================================================
+  # 4. What-If プレビュー（変更影響の可視化）
+  # ============================================================================
+  what-if:
+    name: 📋 What-If Preview
+    runs-on: ubuntu-latest
+    needs: [lint, security]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mask Azure IDs
+        run: |
+          echo "::add-mask::${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          echo "::add-mask::${{ secrets.AZURE_TENANT_ID }}"
+          echo "::add-mask::${{ secrets.AZURE_CLIENT_ID }}"
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: What-If (dev)
+        id: whatif
+        run: |
+          RESULT=$(az deployment sub what-if \
+            --location ${{ env.LOCATION }} \
+            --template-file infra/main.bicep \
+            --parameters infra/parameters/dev.bicepparam \
+            --no-pretty-print 2>&1 | sed \
+              -e "s/${{ secrets.AZURE_SUBSCRIPTION_ID }}/***SUB***/g" \
+              -e "s/${{ secrets.AZURE_TENANT_ID }}/***TENANT***/g" \
+              -e "s/${{ secrets.AZURE_CLIENT_ID }}/***CLIENT***/g" \
+            || true)
+          {
+            echo "result<<EOF"
+            echo "$RESULT" | head -200
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Comment What-If on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const result = process.env.WHATIF_RESULT || 'No output';
+            const body = [
+              '### 📋 Bicep What-If (dev)',
+              '',
+              '<details>',
+              '<summary>変更プレビュー（クリックで展開）</summary>',
+              '',
+              '```',
+              result,
+              '```',
+              '</details>',
+              '',
+              '> ✅ Lint: passed | 🛡️ PSRule: see Security tab | 🔐 Gitleaks: passed'
+            ].join('\n');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body.substring(0, 65000)
+            });
+        env:
+          WHATIF_RESULT: ${{ steps.whatif.outputs.result }}

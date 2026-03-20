@@ -216,13 +216,73 @@ azd down
 | **運用** | IaC (Bicep+AVM), CI/CD (OIDC), Log Analytics |
 | **パフォーマンス** | GPU VM (CUDA), NAT GW, AGW v2 |
 
-## CI/CD
+## CI/CD (DevSecOps)
 
-| ワークフロー | トリガー | 内容 |
-|---|---|---|
-| validate | PR → main | Bicep ビルド + What-If → PR コメント |
-| deploy | main push | dev 自動デプロイ |
-| deploy | 手動 | prod デプロイ（承認必須） |
+GitHub Actions による自動化パイプラインです。Shift-Left の原則で、PR 段階からセキュリティ検証を実施します。
+
+### パイプライン構成
+
+```
+PR 作成 ──→ CI (ci.yml) ──→ マージ ──→ CD (cd.yml)
+              │                            │
+              ├─ 🔍 Bicep Lint             ├─ 🚀 dev 自動デプロイ
+              ├─ 🛡️ PSRule (WAF/CAF)       │     └─ Smoke Test
+              ├─ 🔐 Gitleaks              └─ 🚀 prod 手動デプロイ
+              └─ 📋 What-If → PR コメント        ├─ What-If プレビュー
+                                                 ├─ 承認ゲート ⏸️
+                                                 └─ Smoke Test
+```
+
+### ワークフロー詳細
+
+| ファイル | トリガー | ジョブ | 説明 |
+|---|---|---|---|
+| `ci.yml` | PR → main | 🔍 Lint | Bicep 構文チェック + SARIF レポート |
+| | | 🛡️ Security | PSRule for Azure（WAF/CAF ルール違反を検出） |
+| | | 🔐 Secrets | Gitleaks（コード内の機密情報漏洩を検出） |
+| | | 📋 What-If | 変更プレビューを PR にコメント |
+| `cd.yml` | main push | 🚀 dev | dev 環境へ自動デプロイ + Smoke Test |
+| | 手動 | 📋 What-If (prod) | prod 変更プレビュー |
+| | | 🚀 prod | 承認後に prod デプロイ + Smoke Test |
+
+### セキュリティ対策
+
+| 対策 | 説明 |
+|---|---|
+| **OIDC 認証** | 長期クレデンシャルなし。Federated Identity で Azure にログイン |
+| **ID 二重マスク** | `::add-mask::` + `sed` で Subscription/Tenant/Client ID を隠蔽 |
+| **PSRule** | WAF/CAF ベストプラクティスに違反する設定を PR 段階で検出 |
+| **Gitleaks** | パスワード・API キー・証明書のコード内埋め込みを検出 |
+| **承認ゲート** | prod デプロイには GitHub Environment の承認者による承認が必須 |
+| **Concurrency** | 同一環境への並行デプロイを防止 |
+
+### セットアップ
+
+1. **OIDC 用の Entra ID アプリケーション登録**
+   ```bash
+   az ad app create --display-name "github-actions-oidc"
+   az ad sp create --id <app-id>
+   az ad app federated-credential create --id <app-id> --parameters @- <<EOF
+   {
+     "name": "github-main",
+     "issuer": "https://token.actions.githubusercontent.com",
+     "subject": "repo:<owner>/<repo>:ref:refs/heads/main",
+     "audiences": ["api://AzureADTokenExchange"]
+   }
+   EOF
+   ```
+
+2. **GitHub Secrets の設定**
+
+   | Secret | 値 |
+   |---|---|
+   | `AZURE_CLIENT_ID` | Entra ID アプリケーション ID |
+   | `AZURE_TENANT_ID` | テナント ID |
+   | `AZURE_SUBSCRIPTION_ID` | サブスクリプション ID |
+
+3. **GitHub Environments の設定**
+   - `dev`: 保護ルールなし（自動デプロイ）
+   - `prod`: Required reviewers を設定（承認必須）
 
 ## ディレクトリ構成
 
@@ -247,7 +307,9 @@ azd down
 │   └── GUIDE.md                  # ドキュメント一覧
 ├── images/
 │   └── architecture.drawio       # 構成図（draw.io）
-└── .github/workflows/            # CI/CD
+└── .github/workflows/            # CI/CD (DevSecOps)
+    ├── ci.yml                    # PR: Lint + PSRule + Gitleaks + What-If
+    └── cd.yml                    # Deploy: dev (auto) / prod (approval)
 ```
 
 ## 命名規則

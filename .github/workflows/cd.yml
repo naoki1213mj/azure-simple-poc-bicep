@@ -1,0 +1,169 @@
+# ============================================================================
+# cd.yml — dev 自動デプロイ + prod 手動デプロイ（承認ゲート付き）
+# ============================================================================
+# DevSecOps: 環境分離 + 承認ゲート + デプロイ後検証
+# ============================================================================
+name: CD — Deploy
+
+on:
+  push:
+    branches: [main]
+    paths: ['infra/**', 'scripts/**']
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'デプロイ先環境'
+        required: true
+        type: choice
+        options: ['dev', 'prod']
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: cd-${{ github.event.inputs.environment || 'dev' }}
+  cancel-in-progress: false  # デプロイは途中キャンセルしない
+
+env:
+  LOCATION: japaneast
+
+jobs:
+  # ============================================================================
+  # dev 環境 — main push で自動デプロイ
+  # ============================================================================
+  deploy-dev:
+    name: 🚀 Deploy (dev)
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.environment == 'dev')
+    runs-on: ubuntu-latest
+    environment:
+      name: dev
+      url: https://portal.azure.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mask Azure IDs
+        run: |
+          echo "::add-mask::${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          echo "::add-mask::${{ secrets.AZURE_TENANT_ID }}"
+          echo "::add-mask::${{ secrets.AZURE_CLIENT_ID }}"
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Generate SSH Keys
+        run: |
+          mkdir -p infra/keys
+          ssh-keygen -t rsa -b 4096 -N "" -f infra/keys/id_rsa -q
+
+      - name: Deploy
+        run: |
+          az deployment sub create \
+            --location ${{ env.LOCATION }} \
+            --template-file infra/main.bicep \
+            --parameters infra/parameters/dev.bicepparam \
+            --parameters principalId="$(az ad signed-in-user show --query id -o tsv 2>/dev/null || echo '')" \
+                         sshPublicKey="$(cat infra/keys/id_rsa.pub)" \
+            --name "dev-$(date +%Y%m%d-%H%M%S)" \
+            2>&1 | sed \
+              -e "s/${{ secrets.AZURE_SUBSCRIPTION_ID }}/***SUB***/g" \
+              -e "s/${{ secrets.AZURE_TENANT_ID }}/***TENANT***/g"
+
+      - name: Post-deploy Smoke Test
+        run: |
+          echo "Verifying resource groups exist..."
+          PREFIX=$(grep "param prefix" infra/parameters/dev.bicepparam | head -1 | grep -o "'[^']*'" | tr -d "'")
+          az group show --name "rg-hub-${PREFIX}-${{ env.LOCATION }}-001" --query "properties.provisioningState" -o tsv
+          az group show --name "rg-spoke-${PREFIX}-${{ env.LOCATION }}-001" --query "properties.provisioningState" -o tsv
+          echo "✅ Smoke test passed"
+
+  # ============================================================================
+  # prod 環境 — 手動トリガー + GitHub Environment 承認ゲート
+  # ============================================================================
+  preview-prod:
+    name: 📋 What-If (prod)
+    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mask Azure IDs
+        run: |
+          echo "::add-mask::${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          echo "::add-mask::${{ secrets.AZURE_TENANT_ID }}"
+          echo "::add-mask::${{ secrets.AZURE_CLIENT_ID }}"
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: What-If Preview
+        run: |
+          mkdir -p infra/keys
+          ssh-keygen -t rsa -b 4096 -N "" -f infra/keys/id_rsa -q
+          az deployment sub what-if \
+            --location ${{ env.LOCATION }} \
+            --template-file infra/main.bicep \
+            --parameters infra/parameters/prod.bicepparam \
+            --parameters principalId="$(az ad signed-in-user show --query id -o tsv 2>/dev/null || echo '')" \
+                         sshPublicKey="$(cat infra/keys/id_rsa.pub)" \
+            2>&1 | sed \
+              -e "s/${{ secrets.AZURE_SUBSCRIPTION_ID }}/***SUB***/g" \
+              -e "s/${{ secrets.AZURE_TENANT_ID }}/***TENANT***/g"
+
+  deploy-prod:
+    name: 🚀 Deploy (prod)
+    needs: preview-prod
+    if: github.event_name == 'workflow_dispatch' && inputs.environment == 'prod'
+    runs-on: ubuntu-latest
+    environment:
+      name: prod  # ← GitHub Settings > Environments で承認者を設定
+      url: https://portal.azure.com
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Mask Azure IDs
+        run: |
+          echo "::add-mask::${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          echo "::add-mask::${{ secrets.AZURE_TENANT_ID }}"
+          echo "::add-mask::${{ secrets.AZURE_CLIENT_ID }}"
+
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Generate SSH Keys
+        run: |
+          mkdir -p infra/keys
+          ssh-keygen -t rsa -b 4096 -N "" -f infra/keys/id_rsa -q
+
+      - name: Deploy
+        run: |
+          az deployment sub create \
+            --location ${{ env.LOCATION }} \
+            --template-file infra/main.bicep \
+            --parameters infra/parameters/prod.bicepparam \
+            --parameters principalId="$(az ad signed-in-user show --query id -o tsv 2>/dev/null || echo '')" \
+                         sshPublicKey="$(cat infra/keys/id_rsa.pub)" \
+            --name "prod-$(date +%Y%m%d-%H%M%S)" \
+            2>&1 | sed \
+              -e "s/${{ secrets.AZURE_SUBSCRIPTION_ID }}/***SUB***/g" \
+              -e "s/${{ secrets.AZURE_TENANT_ID }}/***TENANT***/g"
+
+      - name: Post-deploy Smoke Test
+        run: |
+          echo "Verifying resource groups exist..."
+          PREFIX=$(grep "param prefix" infra/parameters/prod.bicepparam | head -1 | grep -o "'[^']*'" | tr -d "'")
+          az group show --name "rg-hub-${PREFIX}-${{ env.LOCATION }}-001" --query "properties.provisioningState" -o tsv
+          az group show --name "rg-spoke-${PREFIX}-${{ env.LOCATION }}-001" --query "properties.provisioningState" -o tsv
+          echo "✅ Smoke test passed"
