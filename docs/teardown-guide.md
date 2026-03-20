@@ -8,7 +8,7 @@ Hub-Spoke PoC 環境を安全に削除する手順です。リソース間の依
 - [azd を使った削除（推奨）](#azd-を使った削除推奨)
 - [手動削除](#手動削除)
   - [1. Recovery Services コンテナー削除](#1-recovery-services-コンテナー削除)
-  - [2. AI Foundry モデル削除](#2-ai-foundry-モデル削除)
+  - [2. Microsoft Foundry モデル削除](#2-ai-foundry-モデル削除)
   - [3. Automation アカウントの jobSchedule 設定削除](#3-automation-アカウントの-jobschedule-設定削除)
   - [4. Spoke リソースグループの削除](#4-spoke-リソースグループの削除)
   - [5. Hub リソースグループの削除](#5-hub-リソースグループの削除)
@@ -81,13 +81,13 @@ az backup protection disable \
   --delete-backup-data true --yes
 ```
 
-### 2. AI Foundry モデル削除
+### 2. Microsoft Foundry モデル削除
 
 #### Azure Portal の場合
 
 １．Azure Portal で `ais-foundry-spoke-<prefix>-jpeast-001` を検索して開く。
 
-２．「**Go to Azure AI Foundry portal**」をクリック。
+２．「**Go to Azure Microsoft Foundry portal**」をクリック。
 
 ３．左ペイン → **deployment** → 各モデルをチェックして「**削除**」をクリック。
 

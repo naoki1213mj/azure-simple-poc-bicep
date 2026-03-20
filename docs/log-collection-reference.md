@@ -114,7 +114,7 @@
 |---|---|---|
 | Audit Logs | 条件付き | AVM の diagnosticSettings で設定（`enableFoundry = true` 時） |
 | Request and Response Logs | **未取得** | 要手動設定 |
-| Azure OpenAI Request Usage | **未取得** | 要手動設定 |
+| AI Services Request Usage | **未取得** | 要手動設定 |
 | Trace Logs | **未取得** | 要手動設定 |
 
 > AI Services の詳細ログ（リクエスト/レスポンス、使用量、トレース）が必要な場合は、Azure Portal または CLI で個別に診断設定を追加してください。

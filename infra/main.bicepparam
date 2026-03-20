@@ -26,7 +26,7 @@ param spokeAddressPrefix = readEnvironmentVariable('SPOKE_ADDRESS_PREFIX', '10.1
 param operatorAllowIps = [readEnvironmentVariable('OPERATOR_ALLOW_IP', '203.0.113.0/24')]
 param customerAllowIps = [readEnvironmentVariable('CUSTOMER_ALLOW_IP', '192.0.2.0/24')]
 
-// AI Foundry
+// Microsoft Foundry
 param enableFoundry = bool(readEnvironmentVariable('ENABLE_FOUNDRY', 'true'))
 param foundryLocation = readEnvironmentVariable('FOUNDRY_LOCATION', 'eastus2')
 

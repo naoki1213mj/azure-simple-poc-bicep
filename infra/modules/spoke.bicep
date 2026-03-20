@@ -1,5 +1,5 @@
 // ============================================================================
-// Spoke モジュール - VNet, VM, Key Vault, Storage, AI Foundry, 監視 (AVM)
+// Spoke モジュール - VNet, VM, Key Vault, Storage, Microsoft Foundry, 監視 (AVM)
 // ============================================================================
 
 @description('リソース命名プレフィックス')
@@ -48,7 +48,7 @@ param operatorAllowIps array
 @description('デプロイ実行者のプリンシパルID')
 param principalId string
 
-@description('AI Foundry 有効/無効')
+@description('Microsoft Foundry 有効/無効')
 param enableFoundry bool
 
 @description('AI Services リージョン')

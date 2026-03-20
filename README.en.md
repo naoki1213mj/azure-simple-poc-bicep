@@ -11,6 +11,28 @@ A Bicep template that deploys an Azure **Hub-Spoke network** PoC environment wit
 - dev / prod environment separation
 - CAF / WAF compliant enterprise security
 
+## What is Azure Verified Modules (AVM)?
+
+This template fully adopts [Azure Verified Modules](https://azure.github.io/Azure-Verified-Modules/), Microsoft's officially maintained Bicep module collection:
+
+- **Quality assured**: Tested in Microsoft's CI/CD. Security, naming, diagnostics built-in
+- **Concise code**: RBAC, Private Endpoints, diagnostics, locks with a single parameter
+- **Version pinning**: Explicit `br/public:avm/res/...:<version>` references
+- **Current APIs**: Module maintains API versions — no manual updates needed
+
+```bicep
+// Example: Key Vault with AVM (RBAC + purge protection + lock + diagnostics in one resource)
+module keyVault 'br/public:avm/res/key-vault/vault:0.11.0' = {
+  params: {
+    name: 'kv-example'
+    enableRbacAuthorization: true
+    enablePurgeProtection: true
+    lock: { kind: 'CanNotDelete' }
+    diagnosticSettings: [{ workspaceResourceId: logAnalyticsId }]
+  }
+}
+```
+
 ## Configuration Patterns
 
 Choose from 2 patterns depending on your use case:
@@ -163,11 +185,11 @@ azd down
 | `CPUVM_NUMBER` / `GPUVM_NUMBER` | VM count | `1` / `1` |
 | `CPUVM_SKU` / `GPUVM_SKU` | VM SKU | `Standard_D8as_v5` / `Standard_NC24ads_A100_v4` |
 
-### AI Foundry
+### Microsoft Foundry
 
 | Environment Variable | Description | Default |
 |---------------------|-------------|---------|
-| `ENABLE_FOUNDRY` | Enable AI Foundry | `true` |
+| `ENABLE_FOUNDRY` | Enable Microsoft Foundry | `true` |
 | `FOUNDRY_LOCATION` | AI Services region | `eastus2` |
 
 ### Network

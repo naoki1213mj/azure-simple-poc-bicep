@@ -24,7 +24,7 @@ param spokeAddressPrefix = '10.1.0.0/16'
 param operatorAllowIps = ['203.0.113.0/24']
 param customerAllowIps = ['198.51.100.0/24']
 
-// AI Foundry
+// Microsoft Foundry
 param enableFoundry = true
 param foundryLocation = 'eastus2'
 param modelDeployments = [

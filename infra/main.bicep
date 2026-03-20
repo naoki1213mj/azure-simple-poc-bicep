@@ -69,10 +69,10 @@ param operatorAllowIps array = []
 param customerAllowIps array = []
 
 // ============================================================================
-// パラメーター定義 - AI Foundry
+// パラメーター定義 - Microsoft Foundry
 // ============================================================================
 
-@description('AI Foundry の有効/無効')
+@description('Microsoft Foundry の有効/無効')
 param enableFoundry bool = true
 
 @description('AI Services リソースのリージョン')

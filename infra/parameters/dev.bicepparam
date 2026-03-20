@@ -20,7 +20,7 @@ param sshPublicKey = 'REPLACE_VIA_CI_OR_CLI'
 param operatorAllowIps = ['203.0.113.0/24']
 param customerAllowIps = ['192.0.2.0/24']
 
-// AI Foundry
+// Microsoft Foundry
 param enableFoundry = true
 param foundryLocation = 'eastus2'
 param modelDeployments = [
