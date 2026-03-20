@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+
+name: azure-poc-hub-spoke
+metadata:
+  template: azure-poc-hub-spoke@0.0.1
+
+infra:
+  provider: bicep
+  path: infra
+  module: main
+
+hooks:
+  preprovision:
+    shell: sh
+    run: scripts/preprovision.sh
+    interactive: true
+    continueOnError: false
+  postprovision:
+    shell: sh
+    run: scripts/postprovision.sh
+    continueOnError: true

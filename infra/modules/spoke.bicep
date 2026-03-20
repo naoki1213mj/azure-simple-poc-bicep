@@ -1,0 +1,491 @@
+// ============================================================================
+// Spoke モジュール - VNet, VM, Key Vault, Storage, AI Foundry, 監視 (AVM)
+// ============================================================================
+
+@description('リソース命名プレフィックス')
+param prefix string
+
+@description('デプロイ先リージョン')
+param location string
+
+@description('リソースタグ')
+param tags object
+
+@description('Spoke VNet CIDR')
+param spokeAddressPrefix string
+
+@description('VM 管理者ユーザー名')
+param vmUser string
+
+@secure()
+@description('SSH 公開鍵')
+param sshPublicKey string
+
+@description('VM 構成パターン')
+param vmPattern int
+
+@description('CPU VM 台数')
+param cpuvmNumber int
+
+@description('GPU VM 台数')
+param gpuvmNumber int
+
+@description('CPU VM SKU')
+param cpuvmSku string
+
+@description('GPU VM SKU')
+param gpuvmSku string
+
+@description('CPU VM データディスクサイズ')
+param cpuvmDataDiskSize int
+
+@description('GPU VM データディスクサイズ')
+param gpuvmDataDiskSize int
+
+@description('運用者グローバルIP')
+param operatorAllowIps array
+
+@description('デプロイ実行者のプリンシパルID')
+param principalId string
+
+@description('AI Foundry 有効/無効')
+param enableFoundry bool
+
+@description('AI Services リージョン')
+param foundryLocation string
+
+@description('モデルデプロイ定義')
+param modelDeployments array
+
+@description('Azure Backup 有効/無効')
+param enableBackup bool
+
+@description('VM 自動起動停止')
+param enableVmAutoStartStop bool
+
+@description('VM 停止時刻')
+param vmStopTime string
+
+@description('WORM 有効/無効')
+param enableWorm bool
+
+@description('WORM 保持期間')
+param wormRetentionDays int
+
+@description('アラート通知先')
+param alertEmail string
+
+@description('VM 性能監視')
+param enableVmMonitoring bool
+
+@description('Hub Blob DNS Zone ID')
+param hubDnsZoneBlobId string
+
+@description('Hub CognitiveServices DNS Zone ID')
+param hubDnsZoneCogServicesId string
+
+@description('Hub Vault DNS Zone ID')
+param hubDnsZoneVaultId string
+
+// ============================================================================
+// 変数
+// ============================================================================
+
+var vmSubnetPrefix = cidrSubnet(spokeAddressPrefix, 24, 0)
+var pepSubnetPrefix = cidrSubnet(spokeAddressPrefix, 24, 1)
+var deployCpuVm = vmPattern == 1 || vmPattern == 3
+var deployGpuVm = vmPattern == 2 || vmPattern == 3
+
+// GPU VM の cloud-init
+var cloudConfigGpuVm = loadTextContent('cloud-init/gpu-vm.yaml')
+var cloudConfigCpuVm = loadTextContent('cloud-init/cpu-vm.yaml')
+
+// ============================================================================
+// NSG - VM サブネット用 (AVM)
+// ============================================================================
+
+module nsgVm 'br/public:avm/res/network/network-security-group:0.5.0' = {
+  name: 'deploy-nsg-vm'
+  params: {
+    name: 'nsg-vm-${prefix}-${location}-001'
+    location: location
+    tags: tags
+    securityRules: [
+      { name: 'Allow-AzureLoadBalancer', priority: 100, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: 'AzureLoadBalancer', destinationAddressPrefix: '*' }
+      { name: 'Allow-Hub-Inbound', priority: 1000, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '10.0.0.0/16', destinationAddressPrefix: '*' }
+      { name: 'Allow-Spoke-Inbound', priority: 1010, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: spokeAddressPrefix, destinationAddressPrefix: '*' }
+      { name: 'Deny-All-Inbound', priority: 4000, direction: 'Inbound', access: 'Deny', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: '*' }
+      { name: 'Allow-Internet-Outbound', priority: 100, direction: 'Outbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: 'Internet' }
+    ]
+  }
+}
+
+// ============================================================================
+// NSG - Private Endpoint サブネット用 (AVM)
+// ============================================================================
+
+module nsgPep 'br/public:avm/res/network/network-security-group:0.5.0' = {
+  name: 'deploy-nsg-pep'
+  params: {
+    name: 'nsg-pep-${prefix}-${location}-001'
+    location: location
+    tags: tags
+  }
+}
+
+// ============================================================================
+// NAT Gateway (AVM)
+// ============================================================================
+
+module natGateway 'br/public:avm/res/network/nat-gateway:1.2.1' = {
+  name: 'deploy-nat-gw'
+  params: {
+    name: 'nat-${prefix}-${location}-001'
+    location: location
+    tags: tags
+    zone: 0
+  }
+}
+
+// ============================================================================
+// VNet - Spoke (AVM)
+// ============================================================================
+
+module vnet 'br/public:avm/res/network/virtual-network:0.5.2' = {
+  name: 'deploy-vnet-spoke'
+  params: {
+    name: 'vnet-spoke-${prefix}-${location}-001'
+    location: location
+    tags: tags
+    addressPrefixes: [spokeAddressPrefix]
+    subnets: [
+      {
+        name: 'snet-vm-${prefix}-001'
+        addressPrefix: vmSubnetPrefix
+        networkSecurityGroupResourceId: nsgVm.outputs.resourceId
+        natGatewayResourceId: natGateway.outputs.resourceId
+      }
+      {
+        name: 'snet-pep-${prefix}-001'
+        addressPrefix: pepSubnetPrefix
+        networkSecurityGroupResourceId: nsgPep.outputs.resourceId
+      }
+    ]
+  }
+}
+
+// ============================================================================
+// Log Analytics (AVM)
+// ============================================================================
+
+module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.9.1' = {
+  name: 'deploy-log-analytics'
+  params: {
+    name: 'log-${prefix}-${location}-001'
+    location: location
+    tags: tags
+    skuName: 'PerGB2018'
+    dataRetention: 90
+  }
+}
+
+// ============================================================================
+// Key Vault (AVM)
+// ============================================================================
+
+module keyVault 'br/public:avm/res/key-vault/vault:0.11.0' = {
+  name: 'deploy-keyvault'
+  params: {
+    name: 'kv-${prefix}-${take(uniqueString(resourceGroup().id), 6)}'
+    location: location
+    tags: tags
+    enableRbacAuthorization: true
+    enablePurgeProtection: true
+    softDeleteRetentionInDays: 90
+    enableVaultForDiskEncryption: true
+    enableVaultForTemplateDeployment: true
+    networkAcls: {
+      defaultAction: 'Deny'
+      bypass: 'AzureServices'
+      ipRules: [for ip in operatorAllowIps: { value: ip }]
+    }
+    diagnosticSettings: [
+      { workspaceResourceId: logAnalytics.outputs.resourceId }
+    ]
+    lock: { kind: 'CanNotDelete', name: 'lock-kv' }
+    roleAssignments: [
+      {
+        principalId: principalId
+        roleDefinitionIdOrName: 'Key Vault Administrator'
+        principalType: 'User'
+      }
+    ]
+  }
+}
+
+// ============================================================================
+// Storage Account (AVM)
+// ============================================================================
+
+module storageAccount 'br/public:avm/res/storage/storage-account:0.15.0' = {
+  name: 'deploy-storage'
+  params: {
+    name: take('st${prefix}${uniqueString(resourceGroup().id)}', 24)
+    location: location
+    tags: tags
+    skuName: 'Standard_LRS'
+    kind: 'StorageV2'
+    allowSharedKeyAccess: false
+    requireInfrastructureEncryption: true
+    minimumTlsVersion: 'TLS1_2'
+    supportsHttpsTrafficOnly: true
+    publicNetworkAccess: 'Disabled'
+    networkAcls: { defaultAction: 'Deny', bypass: 'AzureServices' }
+    blobServices: {
+      deleteRetentionPolicyEnabled: true
+      deleteRetentionPolicyDays: 7
+      containerDeleteRetentionPolicyEnabled: true
+      containerDeleteRetentionPolicyDays: 7
+    }
+    diagnosticSettings: [
+      { workspaceResourceId: logAnalytics.outputs.resourceId }
+    ]
+    lock: { kind: 'CanNotDelete', name: 'lock-st' }
+    privateEndpoints: [
+      {
+        subnetResourceId: vnet.outputs.subnetResourceIds[1]
+        service: 'blob'
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            { privateDnsZoneResourceId: hubDnsZoneBlobId }
+          ]
+        }
+      }
+    ]
+  }
+}
+
+// ============================================================================
+// CPU VM (AVM)
+// ============================================================================
+
+module cpuVm 'br/public:avm/res/compute/virtual-machine:0.12.0' = [for i in range(0, cpuvmNumber): if (deployCpuVm) {
+  name: 'deploy-cpuvm-${i + 1}'
+  params: {
+    name: 'vm-cpu-${prefix}-${location}-${padLeft(string(i + 1), 3, '0')}'
+    location: location
+    tags: tags
+    adminUsername: vmUser
+    disablePasswordAuthentication: true
+    publicKeys: [
+      {
+        keyData: sshPublicKey
+        path: '/home/${vmUser}/.ssh/authorized_keys'
+      }
+    ]
+    vmSize: cpuvmSku
+    zone: 0
+    osType: 'Linux'
+    imageReference: {
+      publisher: 'RedHat'
+      offer: 'RHEL'
+      sku: '94_gen2'
+      version: 'latest'
+    }
+    osDisk: {
+      diskSizeGB: 128
+      managedDisk: { storageAccountType: 'StandardSSD_LRS' }
+      deleteOption: 'Delete'
+    }
+    dataDisks: [
+      {
+        lun: 0
+        diskSizeGB: cpuvmDataDiskSize
+        managedDisk: { storageAccountType: 'StandardSSD_LRS' }
+        createOption: 'Empty'
+        deleteOption: 'Delete'
+      }
+    ]
+    nicConfigurations: [
+      {
+        nicSuffix: '-nic'
+        enableAcceleratedNetworking: true
+        ipConfigurations: [
+          {
+            name: 'ipconfig1'
+            subnetResourceId: vnet.outputs.subnetResourceIds[0] // snet-vm
+          }
+        ]
+      }
+    ]
+    managedIdentities: { systemAssigned: true }
+    securityType: 'TrustedLaunch'
+    secureBootEnabled: true
+    vTpmEnabled: true
+    customData: base64(cloudConfigCpuVm)
+    bootDiagnostics: true
+    patchMode: 'AutomaticByPlatform'
+  }
+}]
+
+// ============================================================================
+// GPU VM (AVM)
+// ============================================================================
+
+module gpuVm 'br/public:avm/res/compute/virtual-machine:0.12.0' = [for i in range(0, gpuvmNumber): if (deployGpuVm) {
+  name: 'deploy-gpuvm-${i + 1}'
+  params: {
+    name: 'vm-gpu-${prefix}-${location}-${padLeft(string(i + 1), 3, '0')}'
+    location: location
+    tags: tags
+    adminUsername: vmUser
+    disablePasswordAuthentication: true
+    publicKeys: [
+      {
+        keyData: sshPublicKey
+        path: '/home/${vmUser}/.ssh/authorized_keys'
+      }
+    ]
+    vmSize: gpuvmSku
+    zone: 0
+    osType: 'Linux'
+    imageReference: {
+      publisher: 'RedHat'
+      offer: 'RHEL'
+      sku: '94_gen2'
+      version: 'latest'
+    }
+    osDisk: {
+      diskSizeGB: 1536
+      managedDisk: { storageAccountType: 'StandardSSD_LRS' }
+      deleteOption: 'Delete'
+    }
+    dataDisks: [
+      {
+        lun: 0
+        diskSizeGB: gpuvmDataDiskSize
+        managedDisk: { storageAccountType: 'StandardSSD_LRS' }
+        createOption: 'Empty'
+        deleteOption: 'Delete'
+      }
+    ]
+    nicConfigurations: [
+      {
+        nicSuffix: '-nic'
+        enableAcceleratedNetworking: true
+        ipConfigurations: [
+          {
+            name: 'ipconfig1'
+            subnetResourceId: vnet.outputs.subnetResourceIds[0]
+          }
+        ]
+      }
+    ]
+    managedIdentities: { systemAssigned: true }
+    securityType: 'TrustedLaunch'
+    secureBootEnabled: false // NVIDIA ドライバ互換性のため
+    vTpmEnabled: true
+    customData: base64(cloudConfigGpuVm)
+    bootDiagnostics: true
+    patchMode: 'AutomaticByPlatform'
+  }
+}]
+
+// ============================================================================
+// VM 自動停止 (DevTestLab Schedule)
+// ============================================================================
+
+resource cpuVmStopSchedule 'Microsoft.DevTestLab/schedules@2018-09-15' = [for i in range(0, cpuvmNumber): if (deployCpuVm && enableVmAutoStartStop) {
+  name: 'shutdown-computevm-vm-cpu-${prefix}-${location}-${padLeft(string(i + 1), 3, '0')}'
+  location: location
+  tags: tags
+  properties: {
+    status: 'Enabled'
+    taskType: 'ComputeVmShutdownTask'
+    dailyRecurrence: { time: vmStopTime }
+    timeZoneId: 'Tokyo Standard Time'
+    notificationSettings: { status: 'Disabled' }
+    targetResourceId: cpuVm[i].outputs.resourceId
+  }
+}]
+
+resource gpuVmStopSchedule 'Microsoft.DevTestLab/schedules@2018-09-15' = [for i in range(0, gpuvmNumber): if (deployGpuVm && enableVmAutoStartStop) {
+  name: 'shutdown-computevm-vm-gpu-${prefix}-${location}-${padLeft(string(i + 1), 3, '0')}'
+  location: location
+  tags: tags
+  properties: {
+    status: 'Enabled'
+    taskType: 'ComputeVmShutdownTask'
+    dailyRecurrence: { time: vmStopTime }
+    timeZoneId: 'Tokyo Standard Time'
+    notificationSettings: { status: 'Disabled' }
+    targetResourceId: gpuVm[i].outputs.resourceId
+  }
+}]
+
+// ============================================================================
+// AI Services (AVM) + Foundry Project
+// ============================================================================
+
+module aiServices 'br/public:avm/res/cognitive-services/account:0.10.0' = if (enableFoundry) {
+  name: 'deploy-ai-services'
+  params: {
+    name: 'ais-${prefix}-${location}-001'
+    location: foundryLocation
+    tags: tags
+    kind: 'AIServices'
+    sku: 'S0'
+    customSubDomainName: 'ais-${prefix}-${location}-001'
+    managedIdentities: { systemAssigned: true }
+    publicNetworkAccess: 'Disabled'
+    networkAcls: { defaultAction: 'Deny' }
+    deployments: [for model in modelDeployments: {
+      name: model.name
+      model: { format: 'OpenAI', name: model.name, version: model.version }
+      sku: { name: model.sku, capacity: model.capacity }
+    }]
+    diagnosticSettings: [
+      { workspaceResourceId: logAnalytics.outputs.resourceId }
+    ]
+    privateEndpoints: [
+      {
+        subnetResourceId: vnet.outputs.subnetResourceIds[1]
+        service: 'account'
+        privateDnsZoneGroup: {
+          privateDnsZoneGroupConfigs: [
+            { privateDnsZoneResourceId: hubDnsZoneCogServicesId }
+          ]
+        }
+      }
+    ]
+    roleAssignments: [for i in range(0, deployCpuVm ? cpuvmNumber : 0): {
+      principalId: cpuVm[i].outputs.systemAssignedMIPrincipalId
+      roleDefinitionIdOrName: 'Cognitive Services OpenAI User'
+      principalType: 'ServicePrincipal'
+    }]
+  }
+}
+
+// ============================================================================
+// Recovery Services Vault (AVM)
+// ============================================================================
+
+module recoveryVault 'br/public:avm/res/recovery-services/vault:0.12.0' = if (enableBackup) {
+  name: 'deploy-recovery-vault'
+  params: {
+    name: 'rsv-${prefix}-${location}-001'
+    location: location
+    tags: tags
+    lock: { kind: 'CanNotDelete', name: 'lock-rsv' }
+  }
+}
+
+// ============================================================================
+// 出力
+// ============================================================================
+
+output vnetId string = vnet.outputs.resourceId
+output vnetName string = vnet.outputs.name
+output logAnalyticsWorkspaceId string = logAnalytics.outputs.resourceId
+output keyVaultName string = keyVault.outputs.name
+output storageAccountName string = storageAccount.outputs.name

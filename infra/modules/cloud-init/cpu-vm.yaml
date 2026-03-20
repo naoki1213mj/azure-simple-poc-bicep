@@ -1,0 +1,44 @@
+#cloud-config
+runcmd:
+  - |
+    #!/bin/bash
+    set -eux
+    # データディスクの検出とマウント
+    for dev in /dev/sd? /dev/nvme?n?; do
+      [ ! -b "$dev" ] && continue
+      if lsblk -n "$dev" | grep -q part; then continue; fi
+      if blkid "$dev" >/dev/null 2>&1; then continue; fi
+      if lsblk -o MODEL "$dev" | grep -q Direct; then continue; fi
+      parted -s "$dev" mklabel gpt
+      parted -s "$dev" mkpart primary 0% 100%
+      partprobe "$dev"
+      udevadm settle
+      if [[ "$dev" == *nvme* ]]; then PART="${dev}p1"; else PART="${dev}1"; fi
+      mkfs.xfs -f "$PART"
+      mkdir -p "/datadrive"
+      uuid=$(blkid -s UUID -o value "$PART")
+      echo "UUID=$uuid /datadrive xfs defaults,nofail 0 0" >> /etc/fstab
+      systemctl daemon-reload
+      mount "/datadrive"
+    done
+    # OS ディスク拡張
+    dnf install -y cloud-utils-growpart gdisk
+    OS_DISK=$(lsblk -o PKNAME,MOUNTPOINT | awk '/\/boot$/ {print $1; exit}')
+    if [ -z "$OS_DISK" ]; then exit 1; fi
+    if [[ "$OS_DISK" == nvme* ]]; then
+      OS_PV_DEV="/dev/${OS_DISK}p4"
+      OS_DISK_DEV="/dev/${OS_DISK}"
+    else
+      OS_PV_DEV="/dev/${OS_DISK}4"
+      OS_DISK_DEV="/dev/${OS_DISK}"
+    fi
+    growpart "$OS_DISK_DEV" 4
+    pvresize "$OS_PV_DEV"
+    lvresize -r -L +15G /dev/rootvg/rootlv
+    lvresize -r -L +20G /dev/rootvg/usrlv
+    lvresize -r -L +15G /dev/rootvg/homelv
+    lvresize -r -L +30G /dev/rootvg/varlv
+    lvresize -r -L +10G /dev/rootvg/tmplv
+package_update: true
+package_upgrade: true
+package_reboot_if_required: true
