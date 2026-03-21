@@ -93,33 +93,7 @@ VM ベースの構成にしたのは自由度が理由です。App Service や C
 
 デモ用途で外部公開したい場合は、Application Gateway + WAF v2 をパラメータで有効にできます。HTTPS 化は SSL 証明書を Key Vault に登録して AppGW のリスナーに設定する形で対応しており、自己署名証明書から Let's Encrypt、商用 CA まで手順を用意しています。Azure Firewall ではなく Application Gateway を選んだのは、L7 の WAF 検証がしたかったのと、コスト面で Firewall より抑えられるためです。
 
-1 回のデプロイで、ネットワークから VM、AI サービスまで一式そろいます。
-
-## アーキテクチャのポイント
-
-この構成で意識した設計判断をまとめます。
-
-### Hub-Spoke 分離のメリット
-
-Hub にネットワーク基盤（Bastion、DNS Zone、AppGW）を、Spoke にワークロード（VM、Storage、AI）を分離しています。Spoke を増やしたくなったら Hub はそのまま、新しい Spoke を追加して Peering するだけです。ネットワーク基盤の変更がワークロードに影響しにくい構造です。
-
-リソースグループも Hub と Spoke で分けているので、権限管理も分離できます。ネットワーク管理者には Hub RG の権限だけ、アプリ開発者には Spoke RG の権限だけ渡す、といった運用が可能です。
-
-### Azure Firewall を使わない判断
-
-Hub-Spoke といえば Azure Firewall が定番ですが、この構成ではあえて外しています。Firewall は月額 10 万円以上かかるうえ、Route Table の設定も複雑になります。PoC 用途で VM 数台の環境には過剰です。
-
-代わりに NSG でサブネット単位のアクセス制御を行い、外部公開が必要な場合は Application Gateway + WAF v2 で L7 保護をかけています。WAF は OWASP ルールセットと Bot Manager で、SQL インジェクションや XSS といった攻撃を自動ブロックできます。「Firewall なしでもセキュリティは確保できる」構成の実例になっています。
-
-### Private Endpoint による閉域化
-
-Storage、AI Services、Key Vault はすべて Private Endpoint 経由でアクセスします。パブリックエンドポイントは無効化済みです。VM からはプライベート IP でこれらのサービスに到達するので、データがインターネットを経由しません。
-
-DNS の名前解決は Hub の Private DNS Zone で行い、Hub と Spoke の両 VNet にリンクしています。この「DNS Zone は Hub に集約、PE は Spoke に配置」というパターンは、Spoke が増えても DNS Zone を追加する必要がなく、スケールしやすい構成です。
-
-### NAT Gateway によるアウトバウンド制御
-
-VM からのインターネット向き通信は NAT Gateway 経由にしています。Azure の既定のアウトバウンドは 2025 年 9 月に廃止されたので、NAT Gateway か Load Balancer のどちらかが必要です。NAT Gateway を使うと、アウトバウンドの送信元 IP が固定されるので、外部サービスの IP ホワイトリストに登録しやすいという副次的なメリットもあります。
+1 回のデプロイで、ネットワークから VM、AI サービスまで一式そろいます。全体像はこの図のとおりです。
 
 ![Hub-Spoke アーキテクチャ図](/images/architecture-pattern1.png)
 *Hub-Spoke PoC 環境の全体構成*
@@ -179,6 +153,30 @@ dev 環境では CPU VM だけ、Application Gateway なし。prod 環境では 
 | Backup | 無効 | 有効 |
 | Defender for Cloud | 無効 | 有効 |
 | WORM ポリシー | 無効 | 30 日保持 |
+
+## アーキテクチャのポイント
+
+この構成で意識した設計判断をまとめます。
+
+### Hub-Spoke 分離のメリット
+
+Hub にネットワーク基盤（Bastion、DNS Zone、AppGW）を、Spoke にワークロード（VM、Storage、AI）を分離しています。Spoke を増やしたくなったら Hub はそのまま、新しい Spoke を追加して Peering するだけです。ネットワーク基盤の変更がワークロードに影響しにくい構造です。
+
+リソースグループも Hub と Spoke で分けているので、権限管理も分離できます。ネットワーク管理者には Hub RG の権限だけ、アプリ開発者には Spoke RG の権限だけ渡す、といった運用が可能です。
+
+### Azure Firewall を使わない判断
+
+Hub-Spoke といえば Azure Firewall が定番ですが、この構成ではあえて外しています。Firewall は月額 10 万円以上かかるうえ、Route Table の設定も複雑になります。PoC 用途で VM 数台の環境には過剰です。
+
+代わりに NSG でサブネット単位のアクセス制御を行い、外部公開が必要な場合は Application Gateway + WAF v2 で L7 保護をかけています。WAF は OWASP ルールセットと Bot Manager で、SQL インジェクションや XSS といった攻撃を自動ブロックできます。
+
+### Private Endpoint による閉域化
+
+Storage、AI Services、Key Vault はすべて Private Endpoint 経由でアクセスします。パブリックエンドポイントは無効化済みです。DNS の名前解決は Hub の Private DNS Zone で行い、Hub と Spoke の両 VNet にリンクしています。この「DNS Zone は Hub に集約、PE は Spoke に配置」するパターンは、Spoke が増えても DNS Zone を追加する必要がなく、スケールしやすい構成です。
+
+### NAT Gateway によるアウトバウンド制御
+
+VM からのインターネット向き通信は NAT Gateway 経由にしています。Azure の既定のアウトバウンドは 2025 年 9 月に廃止されたので、NAT Gateway か Load Balancer のどちらかが必要です。送信元 IP が固定されるので、外部サービスの IP ホワイトリストにも登録しやすくなります。
 
 ## プロジェクト構造
 
