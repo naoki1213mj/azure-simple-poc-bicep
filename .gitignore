@@ -14,6 +14,13 @@ infra/parameters/
 # Bicep build output
 infra/main.json
 
+# GitHub Copilot customizations (private know-how)
+AGENTS.md
+.github/copilot-instructions.md
+.github/instructions/
+.github/skills/
+.github/agents/
+
 # SSL Certificates
 *.pfx
 *.pem
