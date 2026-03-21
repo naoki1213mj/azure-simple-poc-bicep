@@ -684,9 +684,9 @@ resource startRunbook 'Microsoft.Automation/automationAccounts/runbooks@2023-11-
   location: location
   tags: tags
   properties: {
-    runbookType: 'PowerShell'
+    runbookType: 'GraphPowerShell'
     publishContentLink: {
-      uri: 'https://raw.githubusercontent.com/azureautomation/start-azure-v2-vms/master/StartAzureV2Vm.ps1'
+      uri: 'https://raw.githubusercontent.com/azureautomation/start-azure-v2-vms/master/StartAzureV2Vm.graphrunbook'
     }
   }
 }
