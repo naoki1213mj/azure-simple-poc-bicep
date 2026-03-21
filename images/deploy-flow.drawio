@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram name="Deploy Flow" id="deploy-flow">
-        <mxGraphModel dx="1178" dy="578" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="680" math="0" shadow="0">
+        <mxGraphModel dx="472" dy="632" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="680" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -14,46 +14,61 @@
                     <mxGeometry x="300" y="340" width="220" height="110" as="geometry"/>
                 </mxCell>
                 <mxCell id="peering" value="④ peering.bicep&lt;br&gt;&lt;font style=&#39;font-size:13px;font-weight:normal;color:#555&#39;&gt;Hub↔Spoke&lt;br&gt;双方向 VNet Peering&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=16;fontStyle=1;strokeWidth=2;arcSize=20;spacingTop=6;spacingBottom=6;" parent="1" vertex="1">
-                    <mxGeometry x="680" y="110" width="220" height="110" as="geometry"/>
+                    <mxGeometry x="680" y="110" width="200" height="110" as="geometry"/>
                 </mxCell>
                 <mxCell id="dnslink" value="⑤ DNS Zone&lt;br&gt;Spoke VNet リンク&lt;br&gt;&lt;font style=&#39;font-size:13px;font-weight:normal;color:#555&#39;&gt;Hub DNS Zone に&lt;br&gt;Spoke VNet をリンク&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=16;fontStyle=1;strokeWidth=2;arcSize=20;spacingTop=6;spacingBottom=6;" parent="1" vertex="1">
-                    <mxGeometry x="680" y="340" width="220" height="110" as="geometry"/>
+                    <mxGeometry x="680" y="340" width="200" height="110" as="geometry"/>
                 </mxCell>
                 <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#6c8ebf;rounded=1;" parent="1" source="rg" target="hub" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="410" y="270"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#82b366;rounded=1;" parent="1" source="rg" target="spoke" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                    <mxGeometry relative="1" as="geometry">
+                        <Array as="points">
+                            <mxPoint x="410" y="290"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="e3" value="DNS Zone ID" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#D32F2F;dashed=1;dashPattern=6 3;fontSize=13;fontColor=#D32F2F;fontStyle=1;rounded=1;labelBackgroundColor=#FFFFFF;" parent="1" source="hub" target="spoke" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
-                            <mxPoint x="560" y="160"/>
-                            <mxPoint x="560" y="380"/>
+                            <mxPoint x="550" y="170"/>
+                            <mxPoint x="550" y="400"/>
                         </Array>
+                        <mxPoint as="offset"/>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e4" value="VNet ID" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#6c8ebf;fontSize=13;fontColor=#6c8ebf;rounded=1;labelBackgroundColor=#FFFFFF;" parent="1" source="hub" target="peering" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                <mxCell id="e4" value="VNet ID" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#6c8ebf;fontSize=13;fontColor=#6c8ebf;rounded=1;labelBackgroundColor=#FFFFFF;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="520" y="139.72" as="sourcePoint"/>
+                        <mxPoint x="680" y="139.72" as="targetPoint"/>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="e5" value="VNet ID" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#82b366;fontSize=13;fontColor=#82b366;rounded=1;labelBackgroundColor=#FFFFFF;" parent="1" source="spoke" target="peering" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
-                            <mxPoint x="620" y="380"/>
-                            <mxPoint x="620" y="160"/>
+                            <mxPoint x="640" y="370"/>
+                            <mxPoint x="640" y="160"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
                 <mxCell id="e6" value="" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#6c8ebf;dashed=1;rounded=1;" parent="1" source="hub" target="dnslink" edge="1">
                     <mxGeometry relative="1" as="geometry">
                         <Array as="points">
-                            <mxPoint x="580" y="160"/>
-                            <mxPoint x="580" y="380"/>
+                            <mxPoint x="600" y="160"/>
+                            <mxPoint x="600" y="390"/>
                         </Array>
                     </mxGeometry>
                 </mxCell>
-                <mxCell id="e7" value="" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#82b366;dashed=1;rounded=1;" parent="1" source="spoke" target="dnslink" edge="1">
-                    <mxGeometry relative="1" as="geometry"/>
+                <mxCell id="e7" value="Spoke VNet ID" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#82b366;dashed=1;rounded=1;fontSize=12;fontColor=#82b366;labelBackgroundColor=#FFFFFF;" parent="1" edge="1">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="520" y="420" as="sourcePoint"/>
+                        <mxPoint x="680" y="420" as="targetPoint"/>
+                    </mxGeometry>
                 </mxCell>
                 <mxCell id="phase1" value="Phase 1" style="text;html=1;fontSize=14;fontStyle=1;align=center;fillColor=none;strokeColor=none;fontColor=#999999;" parent="1" vertex="1">
                     <mxGeometry x="70" y="60" width="100" height="28" as="geometry"/>
@@ -65,22 +80,22 @@
                     <mxGeometry x="740" y="60" width="100" height="28" as="geometry"/>
                 </mxCell>
                 <mxCell id="legend" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#CCCCCC;strokeWidth=1;" parent="1" vertex="1">
-                    <mxGeometry x="960" y="120" width="250" height="160" as="geometry"/>
+                    <mxGeometry x="890" y="205" width="340" height="160" as="geometry"/>
                 </mxCell>
                 <mxCell id="leg_title" value="凡例" style="text;html=1;fontSize=14;fontStyle=1;fillColor=none;strokeColor=none;" parent="1" vertex="1">
-                    <mxGeometry x="980" y="128" width="50" height="24" as="geometry"/>
+                    <mxGeometry x="910" y="213" width="50" height="24" as="geometry"/>
                 </mxCell>
                 <mxCell id="leg1" value="■ Hub RG スコープ" style="text;html=1;fontSize=13;fillColor=none;strokeColor=none;fontColor=#6c8ebf;" parent="1" vertex="1">
-                    <mxGeometry x="980" y="158" width="210" height="22" as="geometry"/>
+                    <mxGeometry x="910" y="243" width="210" height="22" as="geometry"/>
                 </mxCell>
                 <mxCell id="leg2" value="■ Spoke RG スコープ" style="text;html=1;fontSize=13;fillColor=none;strokeColor=none;fontColor=#82b366;" parent="1" vertex="1">
-                    <mxGeometry x="980" y="185" width="210" height="22" as="geometry"/>
+                    <mxGeometry x="910" y="270" width="210" height="22" as="geometry"/>
                 </mxCell>
                 <mxCell id="leg3" value="■ 両 VNet 完了後" style="text;html=1;fontSize=13;fillColor=none;strokeColor=none;fontColor=#d6b656;" parent="1" vertex="1">
-                    <mxGeometry x="980" y="212" width="210" height="22" as="geometry"/>
+                    <mxGeometry x="910" y="297" width="210" height="22" as="geometry"/>
                 </mxCell>
-                <mxCell id="leg4" value="┄┄ 暗黙の依存 (output 参照)" style="text;html=1;fontSize=13;fillColor=none;strokeColor=none;fontColor=#D32F2F;" parent="1" vertex="1">
-                    <mxGeometry x="980" y="239" width="220" height="22" as="geometry"/>
+                <mxCell id="leg4" value="┄┄ output 参照（実線 = デプロイ順、点線 = データ渡し）" style="text;html=1;fontSize=12;fillColor=none;strokeColor=none;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="910" y="324" width="220" height="30" as="geometry"/>
                 </mxCell>
             </root>
         </mxGraphModel>
