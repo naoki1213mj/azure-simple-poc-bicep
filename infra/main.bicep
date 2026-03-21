@@ -114,6 +114,9 @@ param enableVmAutoStartStop bool = true
 @description('VM 停止時刻 (HHmm)')
 param vmStopTime string = '1800'
 
+@description('VM 起動時刻 (HHmm)')
+param vmStartTime string = '0900'
+
 @description('Microsoft Defender for Cloud の有効/無効')
 param enableDefender bool = false
 
@@ -202,6 +205,7 @@ module spoke 'modules/spoke.bicep' = {
     enableBackup: enableBackup
     enableVmAutoStartStop: enableVmAutoStartStop
     vmStopTime: vmStopTime
+    vmStartTime: vmStartTime
     enableWorm: enableWorm
     wormRetentionDays: wormRetentionDays
     alertEmail: alertEmail
@@ -277,6 +281,39 @@ resource defenderPricing 'Microsoft.Security/pricings@2024-01-01' = if (enableDe
   properties: {
     pricingTier: 'Standard'
     subPlan: 'P1'
+  }
+}
+
+// Defender セキュリティ連絡先
+resource securityContacts 'Microsoft.Security/securityContacts@2023-12-01-preview' = if (enableDefender) {
+  name: 'default'
+  properties: {
+    emails: alertEmail
+    notificationsByRole: {
+      state: 'On'
+      roles: ['Owner', 'Contributor']
+    }
+    alertNotifications: {
+      state: 'On'
+      minimalSeverity: 'Medium'
+    }
+  }
+}
+
+// ============================================================================
+// Activity Log → Log Analytics 転送（サブスクリプションスコープ）
+// ============================================================================
+
+resource activityLogDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
+  name: 'activity-log-to-law'
+  properties: {
+    workspaceId: spoke.outputs.logAnalyticsWorkspaceId
+    logs: [
+      { category: 'Administrative', enabled: true }
+      { category: 'Security', enabled: true }
+      { category: 'Alert', enabled: true }
+      { category: 'Policy', enabled: true }
+    ]
   }
 }
 

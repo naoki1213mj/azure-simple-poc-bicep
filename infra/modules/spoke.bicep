@@ -484,6 +484,225 @@ module recoveryVault 'br/public:avm/res/recovery-services/vault:0.11.0' = if (en
 }
 
 // ============================================================================
+// Action Group（アラート通知先）
+// ============================================================================
+
+resource actionGroup 'Microsoft.Insights/actionGroups@2023-01-01' = if (enableVmMonitoring) {
+  name: 'ag-${prefix}-${location}-001'
+  location: 'global'
+  tags: tags
+  properties: {
+    groupShortName: take(prefix, 12)
+    enabled: true
+    emailReceivers: [
+      { name: 'ops-email', emailAddress: alertEmail, useCommonAlertSchema: true }
+    ]
+  }
+}
+
+// ============================================================================
+// VM 性能監視アラート（Scheduled Query Rules）
+// ============================================================================
+
+var monitoringRules = [
+  { name: 'CPU 使用率 > 90%', query: 'InsightsMetrics | where Namespace == "Processor" and Name == "UtilizationPercentage" | summarize avg(Val) by bin(TimeGenerated, 5m), Computer | where avg_Val > 90', severity: 2 }
+  { name: 'メモリ使用率 > 90%', query: 'InsightsMetrics | where Namespace == "Memory" and Name == "AvailableMB" | extend totalMB = toreal(parse_json(Tags).["vm.azm.ms/memorySizeMB"]) | extend usedPct = (1 - Val / totalMB) * 100 | summarize avg(usedPct) by bin(TimeGenerated, 5m), Computer | where avg_usedPct > 90', severity: 2 }
+  { name: 'ディスク使用率 > 85%', query: 'InsightsMetrics | where Namespace == "LogicalDisk" and Name == "FreeSpacePercentage" | summarize avg(Val) by bin(TimeGenerated, 5m), Computer | where avg_Val < 15', severity: 3 }
+]
+
+resource scheduledQueryRules 'Microsoft.Insights/scheduledQueryRules@2023-03-15-preview' = [for (rule, i) in monitoringRules: if (enableVmMonitoring) {
+  name: 'sqr-${prefix}-${location}-${padLeft(string(i + 1), 2, '0')}'
+  location: location
+  tags: tags
+  properties: {
+    displayName: rule.name
+    severity: rule.severity
+    enabled: true
+    evaluationFrequency: 'PT5M'
+    windowSize: 'PT15M'
+    scopes: [logAnalytics.outputs.resourceId]
+    targetResourceTypes: ['Microsoft.Compute/virtualMachines']
+    criteria: {
+      allOf: [
+        {
+          query: rule.query
+          timeAggregation: 'Count'
+          operator: 'GreaterThan'
+          threshold: 0
+          failingPeriods: { numberOfEvaluationPeriods: 3, minFailingPeriodsToAlert: 2 }
+        }
+      ]
+    }
+    actions: {
+      actionGroups: enableVmMonitoring ? [actionGroup.id] : []
+    }
+  }
+}]
+
+// ============================================================================
+// Azure Monitor Agent（VM Extension + Data Collection Rule）
+// ============================================================================
+
+resource dataCollectionEndpoint 'Microsoft.Insights/dataCollectionEndpoints@2022-06-01' = if (enableVmMonitoring) {
+  name: 'dce-${prefix}-${location}-001'
+  location: location
+  tags: tags
+  properties: {}
+}
+
+resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2022-06-01' = if (enableVmMonitoring) {
+  name: 'dcr-${prefix}-${location}-001'
+  location: location
+  tags: tags
+  properties: {
+    dataCollectionEndpointId: dataCollectionEndpoint.id
+    dataSources: {
+      performanceCounters: [
+        {
+          name: 'perfCounters'
+          streams: ['Microsoft-Perf', 'Microsoft-InsightsMetrics']
+          samplingFrequencyInSeconds: 60
+          counterSpecifiers: [
+            '\\Processor Information(_Total)\\% Processor Time'
+            '\\Memory\\Available Bytes'
+            '\\Memory\\% Committed Bytes In Use'
+            '\\LogicalDisk(_Total)\\% Free Space'
+            '\\LogicalDisk(_Total)\\Free Megabytes'
+          ]
+        }
+      ]
+      syslog: [
+        {
+          name: 'syslog'
+          streams: ['Microsoft-Syslog']
+          facilityNames: ['auth', 'authpriv', 'daemon', 'kern', 'syslog']
+          logLevels: ['Warning', 'Error', 'Critical', 'Alert', 'Emergency']
+        }
+      ]
+    }
+    destinations: {
+      logAnalytics: [
+        { workspaceResourceId: logAnalytics.outputs.resourceId, name: 'logAnalytics' }
+      ]
+    }
+    dataFlows: [
+      { streams: ['Microsoft-Perf', 'Microsoft-InsightsMetrics'], destinations: ['logAnalytics'] }
+      { streams: ['Microsoft-Syslog'], destinations: ['logAnalytics'] }
+    ]
+  }
+}
+
+// CPU VM に AMA をインストール
+resource cpuVmAma 'Microsoft.Compute/virtualMachines/extensions@2024-07-01' = [for i in range(0, cpuvmNumber): if (deployCpuVm && enableVmMonitoring) {
+  name: 'vm-cpu-${prefix}-${location}-${padLeft(string(i + 1), 3, '0')}/AzureMonitorLinuxAgent'
+  location: location
+  tags: tags
+  properties: {
+    publisher: 'Microsoft.Azure.Monitor'
+    type: 'AzureMonitorLinuxAgent'
+    typeHandlerVersion: '1.0'
+    autoUpgradeMinorVersion: true
+    enableAutomaticUpgrade: true
+  }
+  dependsOn: [cpuVm[i]]
+}]
+
+// CPU VM に DCR を関連付け
+resource cpuVmRef 'Microsoft.Compute/virtualMachines@2024-07-01' existing = [for i in range(0, cpuvmNumber): if (deployCpuVm) {
+  name: 'vm-cpu-${prefix}-${location}-${padLeft(string(i + 1), 3, '0')}'
+}]
+
+resource cpuVmDcrAssociation 'Microsoft.Insights/dataCollectionRuleAssociations@2022-06-01' = [for i in range(0, cpuvmNumber): if (deployCpuVm && enableVmMonitoring) {
+  name: 'dcr-assoc-cpuvm-${padLeft(string(i + 1), 3, '0')}'
+  scope: cpuVmRef[i]
+  properties: {
+    dataCollectionRuleId: dataCollectionRule.id
+  }
+  dependsOn: [cpuVm[i]]
+}]
+
+// GPU VM に AMA をインストール
+resource gpuVmAma 'Microsoft.Compute/virtualMachines/extensions@2024-07-01' = [for i in range(0, gpuvmNumber): if (deployGpuVm && enableVmMonitoring) {
+  name: 'vm-gpu-${prefix}-${location}-${padLeft(string(i + 1), 3, '0')}/AzureMonitorLinuxAgent'
+  location: location
+  tags: tags
+  properties: {
+    publisher: 'Microsoft.Azure.Monitor'
+    type: 'AzureMonitorLinuxAgent'
+    typeHandlerVersion: '1.0'
+    autoUpgradeMinorVersion: true
+    enableAutomaticUpgrade: true
+  }
+  dependsOn: [gpuVm[i]]
+}]
+
+// GPU VM に DCR を関連付け
+resource gpuVmRef 'Microsoft.Compute/virtualMachines@2024-07-01' existing = [for i in range(0, gpuvmNumber): if (deployGpuVm) {
+  name: 'vm-gpu-${prefix}-${location}-${padLeft(string(i + 1), 3, '0')}'
+}]
+
+resource gpuVmDcrAssociation 'Microsoft.Insights/dataCollectionRuleAssociations@2022-06-01' = [for i in range(0, gpuvmNumber): if (deployGpuVm && enableVmMonitoring) {
+  name: 'dcr-assoc-gpuvm-${padLeft(string(i + 1), 3, '0')}'
+  scope: gpuVmRef[i]
+  properties: {
+    dataCollectionRuleId: dataCollectionRule.id
+  }
+  dependsOn: [gpuVm[i]]
+}]
+
+// ============================================================================
+// VM 自動起動（Azure Automation）
+// ============================================================================
+
+@description('VM 起動時刻 (HHmm)')
+param vmStartTime string = '0900'
+
+resource automationAccount 'Microsoft.Automation/automationAccounts@2023-11-01' = if (enableVmAutoStartStop) {
+  name: 'aa-${prefix}-${location}-001'
+  location: location
+  tags: tags
+  identity: { type: 'SystemAssigned' }
+  properties: {
+    sku: { name: 'Basic' }
+    encryption: { keySource: 'Microsoft.Automation' }
+  }
+}
+
+// Automation に VM 起動権限を付与
+resource automationRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (enableVmAutoStartStop) {
+  name: guid(resourceGroup().id, automationAccount.id, 'vm-contributor')
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '9980e02c-c2be-4d73-94e8-173b1dc7cf3c') // Virtual Machine Contributor
+    principalId: automationAccount.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource startRunbook 'Microsoft.Automation/automationAccounts/runbooks@2023-11-01' = if (enableVmAutoStartStop) {
+  parent: automationAccount
+  name: 'StartVMs'
+  location: location
+  tags: tags
+  properties: {
+    runbookType: 'PowerShell'
+    publishContentLink: {
+      uri: 'https://raw.githubusercontent.com/azureautomation/start-azure-v2-vms/master/StartAzureV2Vm.ps1'
+    }
+  }
+}
+
+// CPU VM 起動スケジュール
+resource cpuVmStartSchedule 'Microsoft.Automation/automationAccounts/schedules@2023-11-01' = [for i in range(0, cpuvmNumber): if (deployCpuVm && enableVmAutoStartStop) {
+  parent: automationAccount
+  name: 'start-cpuvm-${padLeft(string(i + 1), 3, '0')}'
+  properties: {
+    frequency: 'Day'
+    interval: 1
+    timeZone: 'Tokyo Standard Time'
+  }
+}]
+
+// ============================================================================
 // 出力
 // ============================================================================
 
