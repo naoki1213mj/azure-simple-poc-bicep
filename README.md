@@ -209,6 +209,10 @@ azd down
 | `ENABLE_BACKUP` | Azure Backup | `true` |
 | `ENABLE_WORM` | ストレージ不変性ポリシー | `false` |
 | `ENABLE_VM_AUTO_STOP` | VM 自動停止 | `true` |
+| `VM_STOP_TIME` | VM 停止時刻 (HHmm) | `1800` |
+| `VM_START_TIME` | VM 起動時刻 (HHmm) | `0900` |
+| `ENABLE_VM_MONITORING` | VM 性能監視 (AMA + アラート) | `false` |
+| `ALERT_EMAIL` | アラート通知先メール | `ops@example.com` |
 
 > 全パラメータは [docs/deploy-guide.md](docs/deploy-guide.md) を参照
 
