@@ -155,16 +155,8 @@ infra/
 
 デプロイの依存関係を図にするとこうなります。
 
-```mermaid
-flowchart LR
-    RG["① RG 作成\nHub / Spoke"] --> Hub["② hub.bicep\nVNet, Bastion,\nNSG, DNS Zone"]
-    RG --> |Hub 完了待ち| Spoke["③ spoke.bicep\nVNet, VM, NAT GW,\nKV, Storage, AI"]
-    Hub -->|DNS Zone ID| Spoke
-    Hub -->|VNet ID| Peering["④ peering.bicep\n双方向 Peering"]
-    Spoke -->|VNet ID| Peering
-    Hub -->|VNet ID| DnsLink["⑤ DNS Zone\nSpoke VNet リンク"]
-    Spoke -->|VNet ID| DnsLink
-```
+![デプロイフロー](/images/deploy-flow.drawio.png)
+*main.bicep のデプロイ依存関係（[draw.io ソース](https://github.com/naoki1213mj/azure-simple-poc-bicep/blob/master/images/deploy-flow.drawio)）*
 
 Hub と Spoke は並行してデプロイされますが、Spoke は Hub の DNS Zone ID を受け取るため、実質 Hub の完了を待ちます。Peering と DNS Zone の Spoke VNet リンクは、両方の VNet が揃ってから動きます。
 
