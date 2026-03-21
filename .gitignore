@@ -11,6 +11,9 @@ infra/certs/
 # Environment-specific parameters (contain IP addresses, principal IDs)
 infra/parameters/
 
+# Bicep build output
+infra/main.json
+
 # SSL Certificates
 *.pfx
 *.pem

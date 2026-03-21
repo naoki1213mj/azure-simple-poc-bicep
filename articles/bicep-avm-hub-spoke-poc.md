@@ -87,7 +87,7 @@ module nsgBastion 'br/public:avm/res/network/network-security-group:0.5.0' = {
 1 回のデプロイで、ネットワークから VM、AI サービスまで一式そろいます。
 
 ![Hub-Spoke アーキテクチャ図](/images/architecture-pattern1.png)
-*Hub-Spoke PoC 環境の全体構成（[draw.io ソース](https://github.com/naoki1213mj/azure-simple-poc-bicep/blob/master/images/architecture-hubspoke.drawio)）*
+*Hub-Spoke PoC 環境の全体構成*
 
 :::details テキスト版の構成図
 
@@ -176,8 +176,8 @@ infra/
 
 デプロイの依存関係を図にするとこうなります。
 
-![デプロイフロー](/images/deploy-flow.drawio.png)
-*main.bicep のデプロイ依存関係（[draw.io ソース](https://github.com/naoki1213mj/azure-simple-poc-bicep/blob/master/images/deploy-flow.drawio)）*
+![デプロイフロー](/images/deploy-flow.png)
+*main.bicep のデプロイ依存関係*
 
 Hub と Spoke は並行してデプロイされますが、Spoke は Hub の DNS Zone ID を受け取るため、実質 Hub の完了を待ちます。Peering と DNS Zone の Spoke VNet リンクは、両方の VNet が揃ってから動きます。
 
