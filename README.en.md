@@ -135,6 +135,7 @@ azd up
 ```
 
 `azd up` automatically executes:
+
 1. SSH key generation, resource provider registration
 2. Bicep template deployment
 3. VNet Flow Log creation
@@ -148,6 +149,7 @@ azd down
 ## Deployed Resources
 
 ### Hub Resource Group
+
 - VNet (Bastion Subnet, AGW Subnet)
 - Azure Bastion (Standard SKU)
 - Application Gateway + WAF v2 — optional
@@ -155,6 +157,7 @@ azd down
 - VNet Peering
 
 ### Spoke Resource Group
+
 - VNet (VM Subnet, PE Subnet)
 - CPU VM / GPU VM (RHEL 9.4, SSH key auth)
 - AI Services + Foundry Project — optional
@@ -165,6 +168,7 @@ azd down
 - Recovery Services Vault — optional
 
 ### Subscription Level
+
 - Microsoft Defender for Cloud — optional
 - Activity / Entra ID log collection
 
