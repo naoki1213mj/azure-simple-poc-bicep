@@ -20,6 +20,7 @@ AGENTS.md
 .github/instructions/
 .github/skills/
 .github/agents/
+.github/prompts/
 
 # SSL Certificates
 *.pfx
