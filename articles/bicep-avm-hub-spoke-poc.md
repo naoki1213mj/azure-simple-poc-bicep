@@ -157,14 +157,16 @@ infra/
 
 ```mermaid
 flowchart LR
-    RG[RG 作成<br>Hub / Spoke] --> Hub[hub.bicep<br>VNet, Bastion,<br>DNS Zone]
-    RG --> Spoke[spoke.bicep<br>VNet, VM,<br>KV, Storage, AI]
+    RG["① RG 作成\nHub / Spoke"] --> Hub["② hub.bicep\nVNet, Bastion,\nNSG, DNS Zone"]
+    RG --> |Hub 完了待ち| Spoke["③ spoke.bicep\nVNet, VM, NAT GW,\nKV, Storage, AI"]
     Hub -->|DNS Zone ID| Spoke
-    Hub -->|VNet ID / Name| Peering[peering.bicep<br>双方向 Peering]
-    Spoke -->|VNet ID / Name| Peering
+    Hub -->|VNet ID| Peering["④ peering.bicep\n双方向 Peering"]
+    Spoke -->|VNet ID| Peering
+    Hub -->|VNet ID| DnsLink["⑤ DNS Zone\nSpoke VNet リンク"]
+    Spoke -->|VNet ID| DnsLink
 ```
 
-Hub と Spoke は並行してデプロイされますが、Spoke は Hub の DNS Zone ID を受け取るため、実質 Hub の完了を待ちます。Peering は両方の VNet が揃ってから動きます。
+Hub と Spoke は並行してデプロイされますが、Spoke は Hub の DNS Zone ID を受け取るため、実質 Hub の完了を待ちます。Peering と DNS Zone の Spoke VNet リンクは、両方の VNet が揃ってから動きます。
 
 ```bicep:infra/main.bicep
 targetScope = 'subscription'
