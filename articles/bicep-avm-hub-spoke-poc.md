@@ -562,6 +562,60 @@ az deployment sub create \
 
 `what-if` で差分をプレビューしてからデプロイするのが定石です。特に NSG ルールの変更は、差分を見ずにデプロイすると既存の通信が遮断されるリスクがあります。
 
+## セキュリティ設計
+
+PoC テンプレートとはいえ、セキュリティは手を抜きたくなかったので CAF（Cloud Adoption Framework）と WAF（Well-Architected Framework）のプラクティスをできる範囲で入れています。結果として、エンタープライズ環境にそのまま持ち込んでも大きな修正なしで使えるレベルにはなりました。
+
+### ネットワーク分離
+
+VM にパブリック IP は付けていません。外部からのアクセスは Bastion 経由の SSH のみで、Bastion 自身も NSG で GatewayManager と運用者 IP からの 443 に限定しています。Spoke VM サブネットの NSG は Hub VNet からの通信と Spoke 内の通信だけ許可し、それ以外は全拒否。サブネットごとに NSG を必ず関連付けるゼロトラスト寄りの設計です。
+
+Storage や AI Services へのアクセスは Private Endpoint 経由に限定しています。Storage は `publicNetworkAccess: 'Disabled'` で外部からの直接アクセスを遮断し、AI Services も同様です。PE → Private DNS Zone → VNet リンクの 3 点セットを揃えることで、VM からはプライベート IP で透過的にアクセスできます。
+
+### データ保護
+
+Key Vault は RBAC 認可モードで、アクセスポリシーモードは使っていません。Purge Protection を有効にしているので、誤って論理削除しても 90 日間は復元できます。ネットワークは Default Deny で運用者 IP のみホワイトリスト登録、Azure サービスのバイパスを許可する構成です。
+
+Storage Account は SharedKey アクセスを無効化し、Entra ID 認証のみ。TLS 1.2 を最低バージョンに強制し、インフラストラクチャ暗号化（二重暗号化）も有効にしています。VM は TrustedLaunch で SecureBoot + vTPM を有効にし、EncryptionAtHost でディスク暗号化もかけています。
+
+### 監視と可観測性
+
+全リソースに diagnosticSettings を設定し、Log Analytics Workspace にログを集約しています。AVM モジュールは diagnosticSettings パラメータを持っているので、1 行追加するだけで有効化できます。手作業で Azure Portal からポチポチ設定する必要がありません。
+
+VNet Flow Log は `postprovision.sh` で Hub と Spoke の両 VNet に対して作成し、トラフィック分析（Traffic Analytics）も有効にしています。NSG の通信ログとあわせて、どこからどこへ何が流れているかを可視化できます。
+
+### リソース保護
+
+Key Vault と Storage Account には `CanNotDelete` ロックを設定しています。うっかり `az group delete` しても、ロックがかかったリソースは削除されずにエラーになります。PoC 環境でもデータを失うと困ることはあるので、ロックは入れておいて損はないと感じています。
+
+## テンプレートの設計で工夫した点
+
+### IaC で環境を管理する利点
+
+手動で Azure Portal からリソースを作った場合、「あのリソースの設定どうだっけ」「dev と prod で何が違うんだっけ」が曖昧になりがちです。Bicep でコード化すると、設定が全て Git に残ります。diff を取れば環境間の差分が一目瞭然で、レビューもできます。
+
+`what-if` で事前に変更差分をプレビューできるのも大きなメリットです。NSG ルールの変更で既存通信が遮断されるような事故を、デプロイ前に検知できます。手動変更だとこの安全ネットがありません。
+
+環境の再現性も重要です。このテンプレートは `az deployment sub create` 1 回で、ネットワークから VM、AI サービスまで全リソースが立ち上がります。手順書を見ながらポータルで 30 個のリソースを順番に作る作業が不要になります。壊れたら消して作り直せばいい、という気軽さは PoC 環境で特に価値があります。
+
+### パラメータによる構成の柔軟性
+
+1 つのテンプレートで dev と prod を切り替えられる設計にしています。`vmPattern` で CPU のみ・GPU のみ・両方を選べて、`enableAppGateway` や `enableBackup` のフラグで機能単位でオン・オフできます。
+
+dev 環境は CPU VM 1 台だけの最小構成で月額コストを抑え、prod は GPU VM + Application Gateway + Backup + Defender をフル有効にしてエンタープライズ構成にする。同じコードベースから両方出せるのは、IaC ならではの強みです。
+
+### cloud-init による VM 自動構成
+
+VM がデプロイされると、cloud-init でデータディスクのパーティション作成・フォーマット・マウントと、OS ディスクの LVM 拡張が自動実行されます。SSH でログインした時点ですでに `/datadrive` がマウントされていて、LVM の各区画も拡張済みです。
+
+GPU VM の場合は CUDA ドライバや NVIDIA Container Toolkit のインストールも cloud-init で行うので、デプロイ完了後すぐに `nvidia-smi` が通る状態になります。手動でドライバを入れる時間が不要になるのは地味に嬉しいところです。
+
+### azd + フックスクリプト
+
+Azure Developer CLI（`azd`）に対応しているので、`azd up` 一発でデプロイできます。`preprovision.sh` で SSH 鍵の生成やプリンシパル ID の取得、リソースプロバイダーの登録を自動処理し、`postprovision.sh` で VNet Flow Log の作成や SSL 証明書の Key Vault 登録を行います。
+
+手動デプロイだと 5 ステップ必要な事前準備が、azd ではフックに吸収されて透過的に実行されます。チームメンバーが「まず何をすればいいか」で迷わない仕組みになっています。
+
 ## ハマったところ
 
 実際に手を動かしてみて引っかかった点を正直に書きます。
