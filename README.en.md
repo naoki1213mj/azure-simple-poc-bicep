@@ -209,6 +209,10 @@ azd down
 | `ENABLE_BACKUP` | Azure Backup | `true` |
 | `ENABLE_WORM` | Storage immutability | `false` |
 | `ENABLE_VM_AUTO_STOP` | VM auto stop | `true` |
+| `VM_STOP_TIME` | VM stop time (HHmm) | `1800` |
+| `VM_START_TIME` | VM start time (HHmm) | `0900` |
+| `ENABLE_VM_MONITORING` | VM monitoring (AMA + alerts) | `false` |
+| `ALERT_EMAIL` | Alert notification email | `ops@example.com` |
 
 > All parameters: [docs/deploy-guide.md](docs/deploy-guide.md)
 
