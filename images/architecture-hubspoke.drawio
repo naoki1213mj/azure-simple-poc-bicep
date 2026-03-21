@@ -1,0 +1,208 @@
+<mxfile host="app.diagrams.net" modified="2026-03-21" agent="Copilot" etag="hubspoke" version="24.0.0">
+  <diagram name="Hub-Spoke PoC" id="hubspoke-poc">
+    <mxGraphModel dx="1900" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="1300" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- ========== Azure Subscription ========== -->
+        <mxCell id="sub" value="Azure Subscription" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F3F3;strokeColor=#999999;verticalAlign=top;fontSize=18;fontStyle=1;align=center;strokeWidth=2;arcSize=4;" vertex="1" parent="1">
+          <mxGeometry x="40" y="30" width="1820" height="1230" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== Hub RG ========== -->
+        <mxCell id="hubRG" value="rg-hub-{prefix}-japaneast-001" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;verticalAlign=top;fontSize=15;fontStyle=1;align=center;strokeWidth=3;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="80" y="90" width="780" height="1130" as="geometry"/>
+        </mxCell>
+
+        <!-- Hub VNet -->
+        <mxCell id="hubVNet" value="Hub VNet  10.0.0.0/16" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1565C0;verticalAlign=top;fontSize=14;fontStyle=1;align=center;strokeWidth=4;" vertex="1" parent="1">
+          <mxGeometry x="110" y="150" width="720" height="520" as="geometry"/>
+        </mxCell>
+
+        <!-- AzureBastionSubnet -->
+        <mxCell id="bastionSN" value="AzureBastionSubnet  10.0.0.0/26" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF7FF;strokeColor=#1565C0;verticalAlign=top;fontSize=12;fontStyle=1;align=center;strokeWidth=2;dashed=1;dashPattern=8 8;" vertex="1" parent="1">
+          <mxGeometry x="140" y="200" width="300" height="200" as="geometry"/>
+        </mxCell>
+
+        <!-- Bastion Icon -->
+        <mxCell id="bastion" value="Azure Bastion&#xa;(Standard, IP Connect)" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;image=img/lib/azure2/networking/Bastions.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="238" y="260" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- snet-agw (optional) -->
+        <mxCell id="agwSN" value="snet-agw  10.0.1.0/24  (optional)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#EFF7FF;strokeColor=#1565C0;verticalAlign=top;fontSize=12;fontStyle=1;align=center;strokeWidth=2;dashed=1;dashPattern=8 8;" vertex="1" parent="1">
+          <mxGeometry x="480" y="200" width="320" height="200" as="geometry"/>
+        </mxCell>
+
+        <!-- AppGW Icon -->
+        <mxCell id="appgw" value="Application Gateway&#xa;WAF v2" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;image=img/lib/azure2/networking/Application_Gateways.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="598" y="260" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Private DNS Zones -->
+        <mxCell id="dnsZone" value="Private DNS Zones&#xa;blob / cognitiveservices / vault" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;image=img/lib/azure2/networking/DNS_Zones.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="238" y="500" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- NSG Hub -->
+        <mxCell id="nsgHub" value="NSG" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;image=img/lib/azure2/networking/Network_Security_Groups.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="598" y="500" width="40" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== Spoke RG ========== -->
+        <mxCell id="spokeRG" value="rg-spoke-{prefix}-japaneast-001" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;verticalAlign=top;fontSize=15;fontStyle=1;align=center;strokeWidth=3;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="960" y="90" width="860" height="1130" as="geometry"/>
+        </mxCell>
+
+        <!-- Spoke VNet -->
+        <mxCell id="spokeVNet" value="Spoke VNet  10.1.0.0/16" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;verticalAlign=top;fontSize=14;fontStyle=1;align=center;strokeWidth=4;" vertex="1" parent="1">
+          <mxGeometry x="990" y="150" width="800" height="520" as="geometry"/>
+        </mxCell>
+
+        <!-- snet-vm -->
+        <mxCell id="vmSN" value="snet-vm  10.1.0.0/24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F8E9;strokeColor=#2E7D32;verticalAlign=top;fontSize=12;fontStyle=1;align=center;strokeWidth=2;dashed=1;dashPattern=8 8;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="200" width="350" height="440" as="geometry"/>
+        </mxCell>
+
+        <!-- CPU VM -->
+        <mxCell id="cpuvm" value="CPU VM&#xa;(Standard_D4s_v6)" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;image=img/lib/azure2/compute/Virtual_Machine.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="270" width="55" height="51" as="geometry"/>
+        </mxCell>
+
+        <!-- NAT Gateway -->
+        <mxCell id="natgw" value="NAT Gateway" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;image=img/lib/azure2/networking/NAT.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="420" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- snet-pep -->
+        <mxCell id="pepSN" value="snet-pep  10.1.1.0/24" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F1F8E9;strokeColor=#2E7D32;verticalAlign=top;fontSize=12;fontStyle=1;align=center;strokeWidth=2;dashed=1;dashPattern=8 8;" vertex="1" parent="1">
+          <mxGeometry x="1410" y="200" width="350" height="440" as="geometry"/>
+        </mxCell>
+
+        <!-- Private Endpoint icons -->
+        <mxCell id="pe1" value="PE (Storage)" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;image=img/lib/azure2/networking/Private_Endpoint.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1510" y="260" width="40" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="pe2" value="PE (AI Services)" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;image=img/lib/azure2/networking/Private_Endpoint.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1610" y="260" width="40" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="pe3" value="PE (Key Vault)" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;image=img/lib/azure2/networking/Private_Endpoint.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1510" y="390" width="40" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- NSG Spoke -->
+        <mxCell id="nsgSpoke" value="NSG" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=10;image=img/lib/azure2/networking/Network_Security_Groups.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1610" y="390" width="40" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== Shared Services (outside VNet) ========== -->
+        <mxCell id="sharedLabel" value="共有サービス (Spoke RG)" style="text;html=1;fontSize=14;fontStyle=1;align=left;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="990" y="700" width="250" height="30" as="geometry"/>
+        </mxCell>
+
+        <!-- Log Analytics -->
+        <mxCell id="logana" value="Log Analytics&#xa;Workspace" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;image=img/lib/azure2/analytics/Log_Analytics_Workspaces.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="760" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Key Vault -->
+        <mxCell id="kv" value="Key Vault&#xa;(RBAC, Purge Protection)" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;image=img/lib/azure2/security/Key_Vaults.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="760" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Storage Account -->
+        <mxCell id="storage" value="Storage Account&#xa;(Public Access 無効)" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;image=img/lib/azure2/storage/Storage_Accounts.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1380" y="760" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- AI Services -->
+        <mxCell id="ais" value="AI Services&#xa;(eastus2, GPT-5)" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=11;image=img/lib/azure2/ai_machine_learning/Cognitive_Services.svg;labelPosition=center;verticalLabelPosition=bottom;verticalAlign=top;" vertex="1" parent="1">
+          <mxGeometry x="1560" y="760" width="50" height="50" as="geometry"/>
+        </mxCell>
+
+        <!-- Recovery Services (optional) -->
+        <mxCell id="rsv" value="Recovery Services&#xa;(optional)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#82b366;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1020" y="900" width="140" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Auto-Stop -->
+        <mxCell id="autostop" value="VM 自動停止&#xa;(DevTestLab Schedule)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#82b366;fontSize=11;align=center;" vertex="1" parent="1">
+          <mxGeometry x="1200" y="900" width="160" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== VNet Peering ========== -->
+        <mxCell id="peering" value="VNet Peering&#xa;(双方向)" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=3;strokeColor=#FF6D00;fontSize=12;fontStyle=1;curved=1;" edge="1" source="hubVNet" target="spokeVNet" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== Traffic Flows ========== -->
+
+        <!-- Operator → Bastion -->
+        <mxCell id="operator" value="運用者" style="shape=actor;whiteSpace=wrap;html=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="60" y="730" width="60" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow1" value="SSH via HTTPS:443" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#D32F2F;fontSize=10;fontColor=#D32F2F;" edge="1" source="operator" target="bastion" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Bastion → VM -->
+        <mxCell id="flow2" value="SSH:22 / RDP:3389" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#1565C0;fontSize=10;fontColor=#1565C0;" edge="1" source="bastion" target="cpuvm" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- AppGW → VM -->
+        <mxCell id="flow3" value="HTTP:8080" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#F9A825;fontSize=10;fontColor=#F9A825;dashed=1;" edge="1" source="appgw" target="cpuvm" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- VM → NAT → Internet -->
+        <mxCell id="internet" value="Internet" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="560" width="110" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow4" value="Outbound" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=2;strokeColor=#2E7D32;fontSize=10;fontColor=#2E7D32;" edge="1" source="natgw" target="internet" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- PE → Services (dashed) -->
+        <mxCell id="flow5" value="" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=1;strokeColor=#7B1FA2;dashed=1;" edge="1" source="pe1" target="storage" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="flow6" value="" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=1;strokeColor=#7B1FA2;dashed=1;" edge="1" source="pe2" target="ais" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- DNS Zone link -->
+        <mxCell id="flow7" value="DNS 解決" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=1;strokeColor=#6A1B9A;dashed=1;dashPattern=4 4;fontSize=10;fontColor=#6A1B9A;" edge="1" source="pepSN" target="dnsZone" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Diagnostics → Log Analytics -->
+        <mxCell id="flow8" value="診断ログ" style="edgeStyle=orthogonalEdgeStyle;strokeWidth=1;strokeColor=#999999;dashed=1;dashPattern=3 3;fontSize=9;fontColor=#999999;" edge="1" source="kv" target="logana" parent="1">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- ========== Legend ========== -->
+        <mxCell id="legend" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#333333;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1050" width="480" height="160" as="geometry"/>
+        </mxCell>
+        <mxCell id="legendTitle" value="凡例" style="text;html=1;fontSize=13;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1060" width="60" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg1" value="━━ SSH HTTPS:443  ━━ SSH/RDP  ━━ HTTP Backend" style="text;html=1;fontSize=11;fillColor=none;strokeColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1090" width="440" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg2" value="━━ Outbound (NAT GW)  ┄┄ Private Endpoint  ┄┄ DNS 解決" style="text;html=1;fontSize=11;fillColor=none;strokeColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1115" width="440" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg3" value="━━ VNet Peering (双方向)  ┄┄ 診断ログ" style="text;html=1;fontSize=11;fillColor=none;strokeColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1140" width="440" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="leg4" value="■ Hub RG (青系)  ■ Spoke RG (緑系)  ── VNet 境界  ┄┄ Subnet 境界" style="text;html=1;fontSize=11;fillColor=none;strokeColor=none;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1165" width="440" height="20" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

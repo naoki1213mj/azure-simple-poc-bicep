@@ -111,11 +111,11 @@ module nsgVm 'br/public:avm/res/network/network-security-group:0.5.0' = {
     location: location
     tags: tags
     securityRules: [
-      { name: 'Allow-AzureLoadBalancer', priority: 100, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: 'AzureLoadBalancer', destinationAddressPrefix: '*' }
-      { name: 'Allow-Hub-Inbound', priority: 1000, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '10.0.0.0/16', destinationAddressPrefix: '*' }
-      { name: 'Allow-Spoke-Inbound', priority: 1010, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: spokeAddressPrefix, destinationAddressPrefix: '*' }
-      { name: 'Deny-All-Inbound', priority: 4000, direction: 'Inbound', access: 'Deny', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: '*' }
-      { name: 'Allow-Internet-Outbound', priority: 100, direction: 'Outbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: 'Internet' }
+      { name: 'Allow-AzureLoadBalancer', properties: { priority: 100, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: 'AzureLoadBalancer', destinationAddressPrefix: '*' } }
+      { name: 'Allow-Hub-Inbound', properties: { priority: 1000, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '10.0.0.0/16', destinationAddressPrefix: '*' } }
+      { name: 'Allow-Spoke-Inbound', properties: { priority: 1010, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: spokeAddressPrefix, destinationAddressPrefix: '*' } }
+      { name: 'Deny-All-Inbound', properties: { priority: 4000, direction: 'Inbound', access: 'Deny', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: '*' } }
+      { name: 'Allow-Internet-Outbound', properties: { priority: 100, direction: 'Outbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: 'Internet' } }
     ]
   }
 }
@@ -144,6 +144,9 @@ module natGateway 'br/public:avm/res/network/nat-gateway:1.2.1' = {
     location: location
     tags: tags
     zone: 0
+    publicIPAddressObjects: [
+      { name: 'pip-nat-${prefix}-${location}-001' }
+    ]
   }
 }
 
@@ -322,7 +325,7 @@ module cpuVm 'br/public:avm/res/compute/virtual-machine:0.12.0' = [for i in rang
     securityType: 'TrustedLaunch'
     secureBootEnabled: true
     vTpmEnabled: true
-    customData: base64(cloudConfigCpuVm)
+    customData: cloudConfigCpuVm
     bootDiagnostics: true
     patchMode: 'AutomaticByPlatform'
   }
@@ -385,7 +388,7 @@ module gpuVm 'br/public:avm/res/compute/virtual-machine:0.12.0' = [for i in rang
     securityType: 'TrustedLaunch'
     secureBootEnabled: false // NVIDIA ドライバ互換性のため
     vTpmEnabled: true
-    customData: base64(cloudConfigGpuVm)
+    customData: cloudConfigGpuVm
     bootDiagnostics: true
     patchMode: 'AutomaticByPlatform'
   }
@@ -470,7 +473,7 @@ module aiServices 'br/public:avm/res/cognitive-services/account:0.10.0' = if (en
 // Recovery Services Vault (AVM)
 // ============================================================================
 
-module recoveryVault 'br/public:avm/res/recovery-services/vault:0.12.0' = if (enableBackup) {
+module recoveryVault 'br/public:avm/res/recovery-services/vault:0.11.0' = if (enableBackup) {
   name: 'deploy-recovery-vault'
   params: {
     name: 'rsv-${prefix}-${location}-001'

@@ -41,16 +41,16 @@ module nsgBastion 'br/public:avm/res/network/network-security-group:0.5.0' = {
     location: location
     tags: tags
     securityRules: [
-      { name: 'Allow-GatewayManager-Inbound', priority: 100, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '443', sourceAddressPrefix: 'GatewayManager', destinationAddressPrefix: '*' }
-      { name: 'Allow-AzureLoadBalancer-Inbound', priority: 110, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '443', sourceAddressPrefix: 'AzureLoadBalancer', destinationAddressPrefix: '*' }
-      { name: 'Allow-Operator-Inbound', priority: 120, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '443', sourceAddressPrefixes: operatorAllowIps, destinationAddressPrefix: '*' }
-      { name: 'Allow-BastionHost-Inbound', priority: 130, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRanges: ['8080', '5701'], sourceAddressPrefix: 'VirtualNetwork', destinationAddressPrefix: 'VirtualNetwork' }
-      { name: 'Deny-All-Inbound', priority: 4000, direction: 'Inbound', access: 'Deny', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: '*' }
-      { name: 'Allow-SSH-RDP-Outbound', priority: 100, direction: 'Outbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRanges: ['22', '3389'], sourceAddressPrefix: '*', destinationAddressPrefix: 'VirtualNetwork' }
-      { name: 'Allow-AzureCloud-Outbound', priority: 110, direction: 'Outbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '443', sourceAddressPrefix: '*', destinationAddressPrefix: 'AzureCloud' }
-      { name: 'Allow-BastionHost-Outbound', priority: 120, direction: 'Outbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRanges: ['8080', '5701'], sourceAddressPrefix: 'VirtualNetwork', destinationAddressPrefix: 'VirtualNetwork' }
-      { name: 'Allow-Session-Outbound', priority: 130, direction: 'Outbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '80', sourceAddressPrefix: '*', destinationAddressPrefix: 'Internet' }
-      { name: 'Deny-All-Outbound', priority: 4000, direction: 'Outbound', access: 'Deny', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: '*' }
+      { name: 'Allow-GatewayManager-Inbound', properties: { priority: 100, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '443', sourceAddressPrefix: 'GatewayManager', destinationAddressPrefix: '*' } }
+      { name: 'Allow-AzureLoadBalancer-Inbound', properties: { priority: 110, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '443', sourceAddressPrefix: 'AzureLoadBalancer', destinationAddressPrefix: '*' } }
+      { name: 'Allow-Operator-Inbound', properties: { priority: 120, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '443', sourceAddressPrefixes: operatorAllowIps, destinationAddressPrefix: '*' } }
+      { name: 'Allow-BastionHost-Inbound', properties: { priority: 130, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRanges: ['8080', '5701'], sourceAddressPrefix: 'VirtualNetwork', destinationAddressPrefix: 'VirtualNetwork' } }
+      { name: 'Deny-All-Inbound', properties: { priority: 4000, direction: 'Inbound', access: 'Deny', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: '*' } }
+      { name: 'Allow-SSH-RDP-Outbound', properties: { priority: 100, direction: 'Outbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRanges: ['22', '3389'], sourceAddressPrefix: '*', destinationAddressPrefix: 'VirtualNetwork' } }
+      { name: 'Allow-AzureCloud-Outbound', properties: { priority: 110, direction: 'Outbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '443', sourceAddressPrefix: '*', destinationAddressPrefix: 'AzureCloud' } }
+      { name: 'Allow-BastionHost-Outbound', properties: { priority: 120, direction: 'Outbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRanges: ['8080', '5701'], sourceAddressPrefix: 'VirtualNetwork', destinationAddressPrefix: 'VirtualNetwork' } }
+      { name: 'Allow-Session-Outbound', properties: { priority: 130, direction: 'Outbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '80', sourceAddressPrefix: '*', destinationAddressPrefix: 'Internet' } }
+      { name: 'Deny-All-Outbound', properties: { priority: 4000, direction: 'Outbound', access: 'Deny', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: '*' } }
     ]
   }
 }
@@ -66,11 +66,11 @@ module nsgAppGw 'br/public:avm/res/network/network-security-group:0.5.0' = if (e
     location: location
     tags: tags
     securityRules: [
-      { name: 'Allow-GatewayManager', priority: 100, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '65200-65535', sourceAddressPrefix: 'GatewayManager', destinationAddressPrefix: '*' }
-      { name: 'Allow-AzureLoadBalancer', priority: 110, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: 'AzureLoadBalancer', destinationAddressPrefix: '*' }
-      { name: 'Allow-Operator-HTTPS', priority: 120, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRanges: ['80', '443'], sourceAddressPrefixes: operatorAllowIps, destinationAddressPrefix: '*' }
-      { name: 'Allow-Customer-HTTPS', priority: 130, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRanges: ['80', '443'], sourceAddressPrefixes: customerAllowIps, destinationAddressPrefix: '*' }
-      { name: 'Deny-All-Inbound', priority: 4000, direction: 'Inbound', access: 'Deny', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: '*' }
+      { name: 'Allow-GatewayManager', properties: { priority: 100, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '65200-65535', sourceAddressPrefix: 'GatewayManager', destinationAddressPrefix: '*' } }
+      { name: 'Allow-AzureLoadBalancer', properties: { priority: 110, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: 'AzureLoadBalancer', destinationAddressPrefix: '*' } }
+      { name: 'Allow-Operator-HTTPS', properties: { priority: 120, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRanges: ['80', '443'], sourceAddressPrefixes: operatorAllowIps, destinationAddressPrefix: '*' } }
+      { name: 'Allow-Customer-HTTPS', properties: { priority: 130, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRanges: ['80', '443'], sourceAddressPrefixes: customerAllowIps, destinationAddressPrefix: '*' } }
+      { name: 'Deny-All-Inbound', properties: { priority: 4000, direction: 'Inbound', access: 'Deny', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: '*' } }
     ]
   }
 }
@@ -118,11 +118,9 @@ module bastion 'br/public:avm/res/network/bastion-host:0.6.0' = {
     virtualNetworkResourceId: vnet.outputs.resourceId
     skuName: 'Standard'
     scaleUnits: 2
-    enableTunneling: true
-    enableIpConnect: false
-    disableCopyPaste: true
-    enableShareableLink: false
-    enableSessionRecording: true
+    enableFileCopy: true
+    enableIpConnect: true
+    enableKerberos: false
   }
 }
 
@@ -235,6 +233,9 @@ output vnetId string = vnet.outputs.resourceId
 output vnetName string = vnet.outputs.name
 output bastionName string = bastion.outputs.name
 output dnsZoneBlobId string = dnsZoneBlob.outputs.resourceId
+output dnsZoneBlobName string = dnsZoneBlob.outputs.name
 output dnsZoneCogServicesId string = dnsZoneCogServices.outputs.resourceId
+output dnsZoneCogServicesName string = dnsZoneCogServices.outputs.name
 output dnsZoneVaultId string = dnsZoneVault.outputs.resourceId
+output dnsZoneVaultName string = dnsZoneVault.outputs.name
 output agwSubnetId string = enableAppGateway ? vnet.outputs.subnetResourceIds[1] : ''

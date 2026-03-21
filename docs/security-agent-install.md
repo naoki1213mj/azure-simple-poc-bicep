@@ -39,9 +39,9 @@ az account set --subscription "<サブスクリプション ID>"
 
 # Bastion トンネルを確立（ローカルポート 50026 経由）
 az network bastion tunnel \
-  --name "bas-hub-<prefix>-jpeast-001" \
-  --resource-group "rg-hub-<prefix>-jpeast-001" \
-  --target-resource-id "/subscriptions/<サブスクリプション ID>/resourceGroups/rg-spoke-<prefix>-jpeast-001/providers/Microsoft.Compute/virtualMachines/<VM 名>" \
+  --name "bas-hub-<prefix>-japaneast-001" \
+  --resource-group "rg-hub-<prefix>-japaneast-001" \
+  --target-resource-id "/subscriptions/<サブスクリプション ID>/resourceGroups/rg-spoke-<prefix>-japaneast-001/providers/Microsoft.Compute/virtualMachines/<VM 名>" \
   --resource-port 22 \
   --port 50026
 ```

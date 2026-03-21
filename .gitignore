@@ -8,6 +8,9 @@ _legacy/
 infra/keys/
 infra/certs/
 
+# Environment-specific parameters (contain IP addresses, principal IDs)
+infra/parameters/
+
 # SSL Certificates
 *.pfx
 *.pem

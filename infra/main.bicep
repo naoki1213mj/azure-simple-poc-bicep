@@ -229,6 +229,46 @@ module peering 'modules/peering.bicep' = {
 }
 
 // ============================================================================
+// Private DNS Zone - Spoke VNet リンク（Hub/Spoke 両方デプロイ後に追加）
+// ============================================================================
+
+module dnsLinkBlobSpoke 'br/public:avm/res/network/private-dns-zone:0.7.0' = {
+  name: 'update-pdz-blob-spoke-link'
+  scope: hubRg
+  params: {
+    name: hub.outputs.dnsZoneBlobName
+    virtualNetworkLinks: [
+      { virtualNetworkResourceId: hub.outputs.vnetId, registrationEnabled: false }
+      { virtualNetworkResourceId: spoke.outputs.vnetId, registrationEnabled: false }
+    ]
+  }
+}
+
+module dnsLinkCogSpoke 'br/public:avm/res/network/private-dns-zone:0.7.0' = {
+  name: 'update-pdz-cog-spoke-link'
+  scope: hubRg
+  params: {
+    name: hub.outputs.dnsZoneCogServicesName
+    virtualNetworkLinks: [
+      { virtualNetworkResourceId: hub.outputs.vnetId, registrationEnabled: false }
+      { virtualNetworkResourceId: spoke.outputs.vnetId, registrationEnabled: false }
+    ]
+  }
+}
+
+module dnsLinkVaultSpoke 'br/public:avm/res/network/private-dns-zone:0.7.0' = {
+  name: 'update-pdz-vault-spoke-link'
+  scope: hubRg
+  params: {
+    name: hub.outputs.dnsZoneVaultName
+    virtualNetworkLinks: [
+      { virtualNetworkResourceId: hub.outputs.vnetId, registrationEnabled: false }
+      { virtualNetworkResourceId: spoke.outputs.vnetId, registrationEnabled: false }
+    ]
+  }
+}
+
+// ============================================================================
 // Defender for Cloud (サブスクリプションスコープ)
 // ============================================================================
 
