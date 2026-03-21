@@ -256,6 +256,12 @@ az deployment sub create \
 | `enableFoundry` | Microsoft Foundry の有効/無効 | `true` |
 | `enableAppGateway` | Application Gateway の有無 | `false` |
 | `enableBackup` | Azure Backup の有無 | `true` |
+| `enableVmAutoStartStop` | VM 自動起動停止の有効/無効 | `true` |
+| `vmStopTime` | VM 停止時刻 (HHmm) | `1800` |
+| `vmStartTime` | VM 起動時刻 (HHmm) | `0900` |
+| `enableDefender` | Defender for Cloud の有効/無効 | `false` |
+| `enableVmMonitoring` | VM 性能監視の有効/無効 | `false` |
+| `alertEmail` | アラート通知先メールアドレス | `ops@example.com` |
 
 ## 4. トラブルシューティング
 

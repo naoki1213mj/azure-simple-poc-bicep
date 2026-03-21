@@ -152,6 +152,7 @@ dev 環境では CPU VM だけ、Application Gateway なし。prod 環境では 
 | Application Gateway | 無効 | WAF v2 (Prevention) |
 | Backup | 無効 | 有効 |
 | Defender for Cloud | 無効 | 有効 |
+| VM 性能監視 | 無効 | 有効 |
 | WORM ポリシー | 無効 | 30 日保持 |
 
 ## アーキテクチャのポイント
@@ -567,6 +568,8 @@ param wormRetentionDays = 30
 | 監視 | `avm/res/operational-insights/workspace` | 0.9.1 |
 | AI | `avm/res/cognitive-services/account` | 0.10.0 |
 | DR | `avm/res/recovery-services/vault` | 0.11.0 |
+
+AVM 以外に ARM リソースとして直書きしているものもあります。Application Gateway + WAF Policy、DevTestLab 自動停止スケジュール、Azure Automation（VM 自動起動）、Action Group + Scheduled Query Rules（性能アラート）、Azure Monitor Agent + Data Collection Rules、Defender Security Contacts、Activity Log 転送などです。
 
 バージョンは固定しています。AVM は頻繁に更新されるので、動くバージョンを確認したらロックしておくのが安全です。更新したいときは [AVM Module Index](https://azure.github.io/Azure-Verified-Modules/indexes/bicep/) で変更履歴を確認してから上げます。
 
