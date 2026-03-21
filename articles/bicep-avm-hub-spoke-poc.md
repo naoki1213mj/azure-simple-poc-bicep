@@ -724,3 +724,9 @@ Application Gateway は AVM を使わず `resource` で直書きしました。A
 <https://learn.microsoft.com/azure/architecture/networking/architecture/hub-spoke>
 
 <https://learn.microsoft.com/azure/bastion/bastion-nsg>
+
+**フレームワーク**
+
+<https://learn.microsoft.com/azure/cloud-adoption-framework/>
+
+<https://learn.microsoft.com/azure/well-architected/>
