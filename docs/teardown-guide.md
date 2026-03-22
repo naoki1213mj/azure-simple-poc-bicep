@@ -35,27 +35,19 @@ azd down
 
 ### 0. リソースロックの解除
 
-VNet / Bastion / DNS Zone / Key Vault / Storage / Log Analytics にリソースロックが設定されています。リソースグループを削除する前にロックを解除してください。
+VNet / Bastion / DNS Zone / Key Vault / Storage / Log Analytics にリソースレベルのロックが設定されています。AVM のロックはリソースレベルに作成されるため、`--ids` で削除する必要があります。
 
 ```bash
-# Spoke RG のロック一覧
+# Spoke RG のロック一覧を取得し、ID を確認
 az lock list --resource-group "rg-spoke-<prefix>-japaneast-001" -o table
 
-# 各ロックを削除
-az lock delete --name "lock-vnet-spoke" --resource-group "rg-spoke-<prefix>-japaneast-001"
-az lock delete --name "lock-law" --resource-group "rg-spoke-<prefix>-japaneast-001"
-az lock delete --name "lock-kv" --resource-group "rg-spoke-<prefix>-japaneast-001"
-az lock delete --name "lock-st" --resource-group "rg-spoke-<prefix>-japaneast-001"
+# ロック ID を指定して削除（一括）
+az lock list --resource-group "rg-spoke-<prefix>-japaneast-001" \
+  --query "[].id" -o tsv | while read id; do az lock delete --ids "$id"; done
 
-# Hub RG のロック一覧
-az lock list --resource-group "rg-hub-<prefix>-japaneast-001" -o table
-
-# 各ロックを削除
-az lock delete --name "lock-vnet-hub" --resource-group "rg-hub-<prefix>-japaneast-001"
-az lock delete --name "lock-bastion" --resource-group "rg-hub-<prefix>-japaneast-001"
-az lock delete --name "lock-pdz-blob" --resource-group "rg-hub-<prefix>-japaneast-001"
-az lock delete --name "lock-pdz-cog" --resource-group "rg-hub-<prefix>-japaneast-001"
-az lock delete --name "lock-pdz-vault" --resource-group "rg-hub-<prefix>-japaneast-001"
+# Hub RG も同様
+az lock list --resource-group "rg-hub-<prefix>-japaneast-001" \
+  --query "[].id" -o tsv | while read id; do az lock delete --ids "$id"; done
 ```
 
 Azure Portal の場合は、各リソース → **設定** → **ロック** から削除できます。
@@ -103,14 +95,18 @@ az cognitiveservices account deployment list \
 # 各モデルを削除
 az cognitiveservices account deployment delete \
   --name "$AIS_NAME" --resource-group "$RG" \
-  --deployment-name "<モデル名>" --yes
+  --deployment-name "<モデル名>"
 ```
 
 ### 3. Automation スケジュールの削除
 
-`enableVmAutoStartStop = true` でデプロイした場合のみ必要です。
+`enableVmAutoStartStop = true` でデプロイした場合のみ必要です。リソースグループ削除（Step 4）で Automation アカウントごと削除されるため、このステップはスキップ可能です。
+
+個別に削除する場合（`az automation` 拡張が必要）:
 
 ```bash
+az extension add --name automation
+
 AA_NAME="aa-<prefix>-japaneast-001"
 RG="rg-spoke-<prefix>-japaneast-001"
 
@@ -138,7 +134,7 @@ Azure Portal の場合: リソースグループ → 「リソースグループ
 
 ### 5. VNet Flow Log の削除
 
-postprovision で作成された VNet Flow Log はリソースグループ外に残ります。
+postprovision で作成された VNet Flow Log はリソースグループ削除で通常は一緒に削除されます。残存している場合のみ削除してください。
 
 ```bash
 az network watcher flow-log delete \
@@ -153,10 +149,8 @@ az network watcher flow-log delete \
 ### 6. サブスクリプションレベルのデプロイ削除
 
 ```bash
-# デプロイ履歴の削除
-az deployment sub delete --name "deploy-hub"
-az deployment sub delete --name "deploy-spoke"
-az deployment sub delete --name "deploy-log-analytics"
+# デプロイ履歴の削除（Azure CLI でデプロイした場合の名前）
+az deployment sub delete --name "main"
 
 # デプロイスタックがある場合
 az stack sub delete --name "<prefix>" --action-on-unmanage detachAll --yes
@@ -169,6 +163,9 @@ Key Vault と AI Services は論理削除（ソフトデリート）されます
 ```bash
 # Key Vault の消去
 az keyvault purge --name "kv-<prefix>-<hash>"
+```
+
+> **注意**: Key Vault は Purge Protection が有効なため、即時消去できません。`softDeleteRetentionInDays`（90 日）経過後に自動消去されます。同じ名前の Key Vault を再作成する場合は、プレフィックスを変更してください。
 
 # AI Services の消去（リージョンは foundryLocation に合わせる）
 az cognitiveservices account purge \

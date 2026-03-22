@@ -550,7 +550,7 @@ resource scheduledQueryRules 'Microsoft.Insights/scheduledQueryRules@2023-03-15-
       allOf: [
         {
           query: rule.query
-          timeAggregation: 'Average'
+          timeAggregation: 'Count'
           operator: 'GreaterThan'
           threshold: 0
           failingPeriods: { numberOfEvaluationPeriods: 3, minFailingPeriodsToAlert: 2 }
@@ -719,7 +719,6 @@ resource cpuVmStartSchedule 'Microsoft.Automation/automationAccounts/schedules@2
   properties: {
     frequency: 'Day'
     interval: 1
-    startTime: '${substring(vmStartTime, 0, 2)}:${substring(vmStartTime, 2, 2)}'
     timeZone: 'Tokyo Standard Time'
   }
 }]
