@@ -165,7 +165,7 @@ Key Vault と AI Services は論理削除（ソフトデリート）されます
 az keyvault purge --name "kv-<prefix>-<hash>"
 ```
 
-> **注意**: Key Vault は Purge Protection が有効なため、即時消去できません。`softDeleteRetentionInDays`（90 日）経過後に自動消去されます。同じ名前の Key Vault を再作成する場合は、プレフィックスを変更してください。
+> **注意**: Key Vault は Purge Protection が有効なため、即時消去できません。`softDeleteRetentionInDays`（90 日）経過後に自動消去されます。同じプレフィックスで再デプロイする場合、`preprovision.sh` が論理削除中の Key Vault / AI Services を自動検出・復元するため、名前衝突は発生しません。
 
 # AI Services の消去（リージョンは foundryLocation に合わせる）
 az cognitiveservices account purge \

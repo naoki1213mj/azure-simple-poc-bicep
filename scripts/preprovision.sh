@@ -123,7 +123,31 @@ done
 echo "リソースプロバイダーの確認が完了しました。"
 
 # -----------------------------------------------
-# 7. SSL 証明書の確認（AGW有効時）
+# 7. 論理削除リソースの復元（再デプロイ時の名前衝突回避）
+# -----------------------------------------------
+LOCATION="${AZURE_LOCATION:-japaneast}"
+SPOKE_RG="rg-spoke-${AZURE_PREFIX}-${LOCATION}-001"
+
+echo "論理削除された Key Vault を確認しています..."
+DELETED_KVS=$(az keyvault list-deleted --query "[?contains(name,'${AZURE_PREFIX}')].name" -o tsv 2>/dev/null || echo "")
+if [ -n "${DELETED_KVS}" ]; then
+  for kv_name in ${DELETED_KVS}; do
+    echo "  論理削除された Key Vault を復元中: ${kv_name}"
+    az keyvault recover --name "${kv_name}" --only-show-errors 2>/dev/null || echo "  復元をスキップしました（既に存在する可能性があります）"
+  done
+fi
+
+echo "論理削除された AI Services を確認しています..."
+DELETED_AIS=$(az cognitiveservices account list-deleted --query "[?contains(name,'${AZURE_PREFIX}')].{name:name, rg:resourceGroup, location:location}" -o tsv 2>/dev/null || echo "")
+if [ -n "${DELETED_AIS}" ]; then
+  echo "${DELETED_AIS}" | while IFS=$'\t' read -r ais_name ais_rg ais_location; do
+    echo "  論理削除された AI Services を復元中: ${ais_name}"
+    az cognitiveservices account recover --name "${ais_name}" --resource-group "${ais_rg}" --location "${ais_location}" --only-show-errors 2>/dev/null || echo "  復元をスキップしました"
+  done
+fi
+
+# -----------------------------------------------
+# 8. SSL 証明書の確認（AGW有効時）
 # -----------------------------------------------
 ENABLE_APP_GATEWAY="${ENABLE_APP_GATEWAY:-false}"
 if [ "${ENABLE_APP_GATEWAY}" = "true" ]; then
