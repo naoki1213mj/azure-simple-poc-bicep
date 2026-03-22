@@ -1,5 +1,10 @@
 # Azure Hub-Spoke PoC Environment Template
 
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Fraw.githubusercontent.com%2Fnaoki1213mj%2Fazure-simple-poc-bicep%2Fmaster%2Finfra%2Fmain.json)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Bicep](https://img.shields.io/badge/IaC-Bicep-blue)](https://learn.microsoft.com/azure/azure-resource-manager/bicep/)
+[![AVM](https://img.shields.io/badge/modules-Azure%20Verified%20Modules-blue)](https://azure.github.io/Azure-Verified-Modules/)
+
 [日本語](README.md)
 
 ## What is this?
