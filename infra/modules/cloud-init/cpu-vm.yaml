@@ -39,6 +39,13 @@ runcmd:
     lvresize -r -L +15G /dev/rootvg/homelv
     lvresize -r -L +30G /dev/rootvg/varlv
     lvresize -r -L +10G /dev/rootvg/tmplv
+    # uv + Python 3.14 + ruff
+    curl -LsSf https://astral.sh/uv/install.sh | env INSTALLER_NO_MODIFY_PATH=1 sh
+    cp /root/.local/bin/uv /usr/local/bin/uv
+    cp /root/.local/bin/uvx /usr/local/bin/uvx
+    uv python install 3.14
+    uv tool install ruff
+    cp /root/.local/bin/ruff /usr/local/bin/ruff
 package_update: true
 package_upgrade: true
 package_reboot_if_required: true
