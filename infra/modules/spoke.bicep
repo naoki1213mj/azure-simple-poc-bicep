@@ -383,7 +383,7 @@ module gpuVm 'br/public:avm/res/compute/virtual-machine:0.12.0' = [for i in rang
       version: 'latest'
     }
     osDisk: {
-      diskSizeGB: 1536
+      diskSizeGB: 1280
       managedDisk: { storageAccountType: 'StandardSSD_LRS' }
       deleteOption: 'Delete'
     }
