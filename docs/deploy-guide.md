@@ -1,236 +1,189 @@
 # デプロイ手順書   <!-- omit in toc -->
 
-Hub-Spoke PoC 環境を Azure Developer CLI (`azd`) または Azure CLI でデプロイする手順です。
+Hub-Spoke PoC 環境のデプロイ手順です。`azd up` による一括デプロイと、Azure CLI による手動デプロイの 2 通りを記載しています。
 
 ## 目次   <!-- omit in toc -->
 
-- [前提条件チェックリスト](#前提条件チェックリスト)
-  - [基盤](#基盤)
-  - [権限](#権限)
+- [前提条件](#前提条件)
+  - [Azure 側の準備](#azure-側の準備)
   - [ローカルツール](#ローカルツール)
-  - [事前機能登録](#事前機能登録)
-  - [事前確認項目](#事前確認項目)
-- [構成](#構成)
-  - [構成パターン](#構成パターン)
-  - [CPU VM と GPU VM の構成](#cpu-vm-と-gpu-vm-の構成)
-- [事前準備](#事前準備)
-  - [Azure CLI のインストール](#azure-cli-のインストール)
-  - [Azure Developer CLI のインストール](#azure-developer-cli-のインストール)
-  - [Azure へのログイン](#azure-へのログイン)
-- [1. azd を使ったデプロイ（推奨）](#1-azd-を使ったデプロイ推奨)
-  - [1-1. リポジトリのクローン](#1-1-リポジトリのクローン)
-  - [1-2. 環境変数の設定](#1-2-環境変数の設定)
-  - [1-3. SSL 証明書の配置（Application Gateway 使用時）](#1-3-ssl-証明書の配置application-gateway-使用時)
-  - [1-4. デプロイ実行](#1-4-デプロイ実行)
-- [2. Azure CLI を使ったデプロイ](#2-azure-cli-を使ったデプロイ)
-  - [2-1. SSH 鍵の生成](#2-1-ssh-鍵の生成)
-  - [2-2. パラメータファイルの準備](#2-2-パラメータファイルの準備)
-  - [2-3. デプロイ実行](#2-3-デプロイ実行)
-- [3. パラメータ一覧](#3-パラメータ一覧)
-  - [主要パラメータ（抜粋）](#主要パラメータ抜粋)
-- [4. トラブルシューティング](#4-トラブルシューティング)
+  - [事前に決めておくこと](#事前に決めておくこと)
+- [VM の構成](#vm-の構成)
+  - [CPU VM](#cpu-vm)
+  - [GPU VM](#gpu-vm)
+- [デプロイ方法 1 — azd（推奨）](#デプロイ方法-1--azd推奨)
+  - [環境変数の設定](#環境変数の設定)
+  - [SSL 証明書の配置（AGW 使用時のみ）](#ssl-証明書の配置agw-使用時のみ)
+  - [デプロイ実行](#デプロイ実行)
+- [デプロイ方法 2 — Azure CLI](#デプロイ方法-2--azure-cli)
+- [パラメータ一覧](#パラメータ一覧)
+- [デプロイ後の確認](#デプロイ後の確認)
+- [トラブルシューティング](#トラブルシューティング)
   - [リソースプロバイダーの登録エラー](#リソースプロバイダーの登録エラー)
   - [EncryptionAtHost エラー](#encryptionathost-エラー)
   - [VM SKU のキャパシティエラー](#vm-sku-のキャパシティエラー)
   - [GPU VM のクォータエラー](#gpu-vm-のクォータエラー)
-  - [What-If で事前確認](#what-if-で事前確認)
+  - [デプロイがタイムアウトする](#デプロイがタイムアウトする)
 
-## 前提条件チェックリスト
+## 前提条件
 
-> チェックボックスは未確認 (□) を示します。要件を満たしたら ✔ を入れてください。
+### Azure 側の準備
 
-### 基盤
-
-
-- [ ] **Microsoft Entra テナント**が準備済みであること
-- [ ] **Azure サブスクリプション**が準備済みであること
-
-
-### 権限
-
-- [ ] Entra ID で **セキュリティ管理者** ロールが付与済みであること
-- [ ] サブスクリプションで **所有者 (Owner)** ロールが付与済みであること
-
-
-### ローカルツール
-
-- [ ] **Azure CLI** v2.72.0 以上がインストール済みであること
-- [ ] **Bicep CLI** v0.22.6 以上であること（`az bicep upgrade` で更新）
-
-- [ ] **Azure Developer CLI (azd)** v1.10.0 以上がインストール済みであること（azd デプロイの場合）
-
-### 事前機能登録
-
+- [ ] Azure サブスクリプションに**所有者 (Owner)** ロールがあること
+- [ ] Entra ID テナントで**セキュリティ管理者**ロールがあること
 - [ ] `Microsoft.Compute/EncryptionAtHost` 機能が登録済みであること
 
-```bash
-# 確認
-az feature show --namespace Microsoft.Compute --name EncryptionAtHost --query "properties.state" -o tsv
+EncryptionAtHost の登録状況は次のコマンドで確認できます。
 
-# 未登録の場合
+```bash
+az feature show --namespace Microsoft.Compute --name EncryptionAtHost \
+  --query "properties.state" -o tsv
+```
+
+`NotRegistered` と表示された場合は登録してください。反映まで数分かかります。
+
+```bash
 az feature register --namespace Microsoft.Compute --name EncryptionAtHost
 az provider register -n Microsoft.Compute
 ```
 
-### 事前確認項目
+### ローカルツール
 
-| 区分 | 確認事項 | 決定例 |
-|------|----------|--------|
-| 命名 | プレフィックス名（英小文字/数字 3-7 桁） | `dev0001` |
-| VM | CPU VM / GPU VM の台数・SKU・Data ディスクサイズ | CPU VM 1 台 |
-| Microsoft Foundry | 利用有無・リージョン・モデル | あり, `eastus2`, `gpt-5` |
-| 接続元 IP | 運用者/エンドユーザーのグローバル IP | `203.0.113.0/24` |
-| 通知先 | アラート送信先メールアドレス | `ops@example.com` |
-| Application Gateway | 利用有無・ドメイン・SSL 証明書 | あり, `.example.com` |
-| バックアップ | Azure Backup 利用有無 | あり |
-
-## 構成
-
-### 構成パターン
-
-| パターン | 説明 |
-|----------|------|
-| パターン① | Application Gateway (WAF v2) を使用してアプリを外部公開する構成 |
-| パターン② | Bastion 経由のみでアクセスする閉じた構成 |
-
-### CPU VM と GPU VM の構成
-
-**CPU VM** — アプリケーション実行用
-
-| # | パーティション | ディスク容量 |
+| ツール | 最低バージョン | 確認コマンド |
 |---|---|---|
-| 1 | / (root) | 15 GB |
-| 2 | /usr | 20 GB |
-| 3 | /tmp | 10 GB |
-| 4 | /home | 15 GB |
-| 5 | /var | 30 GB |
-| 6 | /datadrive | パラメータで指定したサイズ |
+| Azure CLI | 2.80.0 | `az version` |
+| Bicep CLI | 0.35.0 | `az bicep version` |
+| Azure Developer CLI (azd) | 1.16.0 | `azd version` |
 
-**GPU VM** — LLM/CUDA ワークロード用
-
-| # | ミドルウェア | バージョン |
-|---|---|---|
-| 1 | CUDA Driver | 550.90.07 |
-| 2 | CUDA Toolkit | 12.4 |
-| 3 | NVIDIA Container Toolkit | 1.17.4 |
-| 4 | Podman | 4.9.4 |
-| 5 | Python | 3.12 |
-
-| # | パーティション | ディスク容量 |
-|---|---|---|
-| 1 | / (root) | 15 GB |
-| 2 | /usr | 20 GB |
-| 3 | /tmp | 10 GB |
-| 4 | /home | 1.0 TB |
-| 5 | /var | 30 GB |
-| 6 | /datadrive | パラメータで指定したサイズ |
-
-## 事前準備
-
-### Azure CLI のインストール
+> Bicep CLI は `az bicep upgrade` で更新できます。azd を使わない場合、azd のインストールは不要です。
 
 ```bash
 # macOS
 brew install azure-cli
-
-# Ubuntu/Debian
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-
-# Windows (winget)
-winget install Microsoft.AzureCLI
-```
-
-### Azure Developer CLI のインストール
-
-```bash
-# macOS
 brew install azd
 
 # Linux
+curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 curl -fsSL https://aka.ms/install-azd.sh | bash
 
-# Windows (winget)
+# Windows
+winget install Microsoft.AzureCLI
 winget install Microsoft.Azd
 ```
 
-### Azure へのログイン
+### 事前に決めておくこと
 
-```bash
-az login
-az account set --subscription "<サブスクリプション ID>"
-```
+デプロイ前に以下の項目を決定してください。
 
-## 1. azd を使ったデプロイ（推奨）
+| 項目 | 例 | 備考 |
+|---|---|---|
+| プレフィックス（英小文字/数字 3-7 桁） | `dev0001` | リソース名に使用 |
+| VM 台数・SKU | CPU VM 1 台 `Standard_D4s_v6` | パターン: 1=CPU / 2=GPU / 3=両方 |
+| Microsoft Foundry | `eastus2`, `gpt-5-mini` | 不要なら `ENABLE_FOUNDRY=false` |
+| 接続元 IP | `203.0.113.0/24` | 運用者とエンドユーザーの 2 種類 |
+| Application Gateway | `.example.com` + SSL 証明書 | 不要なら `ENABLE_APP_GATEWAY=false` |
+| アラート通知先 | `ops@example.com` | |
 
-### 1-1. リポジトリのクローン
+## VM の構成
+
+このテンプレートでは 2 種類の VM を選択できます。`vmPattern` パラメータで制御します。
+
+### CPU VM
+
+OS は RHEL 9.4、SSH 鍵認証のみ。cloud-init でデータディスクのフォーマットと OS ディスク拡張を自動実行します。
+
+| パーティション | 容量 |
+|---|---|
+| / (root) | 15 GB |
+| /usr | 20 GB |
+| /tmp | 10 GB |
+| /home | 15 GB |
+| /var | 30 GB |
+| /datadrive | パラメータ指定（デフォルト 512 GB） |
+
+### GPU VM
+
+CPU VM の構成に加え、以下のミドルウェアを cloud-init で自動インストールします。
+
+| ミドルウェア | バージョン |
+|---|---|
+| CUDA Driver | 550.90.07 |
+| CUDA Toolkit | 12.4 |
+| NVIDIA Container Toolkit | 1.17.4 |
+| Podman | 4.9.4 |
+| Python | 3.14 |
+
+`/home` は LLM モデル格納を想定して 1.0 TB に拡張されます。データディスクのデフォルトは 1536 GB です。
+
+## デプロイ方法 1 — azd（推奨）
 
 ```bash
 git clone https://github.com/<your-org>/azure-poc-hub-spoke.git
 cd azure-poc-hub-spoke
+az login
 ```
 
-### 1-2. 環境変数の設定
+### 環境変数の設定
 
 ```bash
 azd init
 
-# 必須パラメータ
+# 必須
 azd env set AZURE_PREFIX "dev0001"
 azd env set AZURE_LOCATION "japaneast"
-
-# ネットワーク
 azd env set OPERATOR_ALLOW_IP "203.0.113.0/24"
 azd env set CUSTOMER_ALLOW_IP "198.51.100.0/24"
 
 # アラート
 azd env set ALERT_EMAIL "ops@example.com"
 
-# Application Gateway（不要な場合は false）
+# Application Gateway を使う場合
 azd env set ENABLE_APP_GATEWAY "true"
 azd env set DOMAIN ".example.com"
 azd env set SSL_PASSWORD "<pfx-password>"
 ```
 
-### 1-3. SSL 証明書の配置（Application Gateway 使用時）
+全環境変数の一覧は [パラメータ一覧](#パラメータ一覧) を参照してください。
+
+### SSL 証明書の配置（AGW 使用時のみ）
 
 ```bash
 mkdir -p infra/certs
 cp /path/to/your-cert.pfx infra/certs/server.pfx
 ```
 
-### 1-4. デプロイ実行
+証明書の発行方法は [SSL 証明書発行手順書](ssl-certificate-issuance.md) を参照してください。
+
+### デプロイ実行
 
 ```bash
-
 azd up
 ```
 
-以下が自動実行されます:
+`azd up` は以下の 3 ステップを自動実行します。
 
-1. **preprovision**: SSH 鍵生成、乱数 ID 生成、リソースプロバイダー登録
-2. **provision**: Bicep テンプレートのデプロイ
-3. **postprovision**: VNet Flow Log 作成、SSL 証明書の Key Vault 登録
+1. **preprovision** — SSH 鍵生成、プリンシパル ID 取得、リソースプロバイダー登録
+2. **provision** — Bicep テンプレートのデプロイ（サブスクリプションスコープ）
+3. **postprovision** — VNet Flow Log 作成、SSL 証明書の Key Vault 登録
 
-## 2. Azure CLI を使ったデプロイ
+## デプロイ方法 2 — Azure CLI
 
-### 2-1. SSH 鍵の生成
+azd を使わず Azure CLI だけでデプロイする場合の手順です。
 
 ```bash
+# SSH 鍵の生成
 mkdir -p infra/keys
 ssh-keygen -t rsa -b 4096 -N "" -f infra/keys/id_rsa
-```
 
-### 2-2. パラメータファイルの準備
+# What-If で変更内容を事前確認
+az deployment sub what-if \
+  --location japaneast \
+  --template-file infra/main.bicep \
+  --parameters infra/parameters/dev.bicepparam \
+  --parameters sshPublicKey="$(cat infra/keys/id_rsa.pub)" \
+  --parameters principalId="$(az ad signed-in-user show --query id -o tsv)"
 
-```bash
-# dev 環境の場合
-cp infra/parameters/dev.bicepparam infra/my-deploy.bicepparam
-# my-deploy.bicepparam を編集して値を設定
-```
-
-### 2-3. デプロイ実行
-
-```bash
+# 問題なければデプロイ
 az deployment sub create \
   --location japaneast \
   --template-file infra/main.bicep \
@@ -239,65 +192,86 @@ az deployment sub create \
   --parameters principalId="$(az ad signed-in-user show --query id -o tsv)"
 ```
 
-## 3. パラメータ一覧
+パラメータを変更する場合は `dev.bicepparam` をコピーして編集してください。
 
-詳細なパラメータ一覧は [README.md](../README.md#パラメータ一覧) を参照してください。
+```bash
+cp infra/parameters/dev.bicepparam infra/parameters/my-env.bicepparam
+# 編集後、--parameters で指定
+```
 
-### 主要パラメータ（抜粋）
+## パラメータ一覧
 
 | パラメータ | 説明 | デフォルト |
 |---|---|---|
-| `prefix` | リソース命名プレフィックス (3-7桁) | *(必須)* |
+| `prefix` | リソース命名プレフィックス (3-7 桁) | *(必須)* |
 | `location` | デプロイ先リージョン | `japaneast` |
 | `vmPattern` | 1:CPU / 2:GPU / 3:両方 | `3` |
+| `cpuvmNumber` / `gpuvmNumber` | VM 台数 | `1` / `1` |
 | `cpuvmSku` | CPU VM の SKU | `Standard_D8as_v5` |
+| `gpuvmSku` | GPU VM の SKU | `Standard_NC24ads_A100_v4` |
+| `cpuvmDataDiskSize` | CPU VM データディスク (GB) | `512` |
+| `gpuvmDataDiskSize` | GPU VM データディスク (GB) | `1536` |
 | `sshPublicKey` | SSH 公開鍵 | *(必須)* |
 | `principalId` | デプロイ実行者のプリンシパル ID | *(必須)* |
 | `enableFoundry` | Microsoft Foundry の有効/無効 | `true` |
+| `foundryLocation` | AI Services リージョン | `eastus2` |
 | `enableAppGateway` | Application Gateway の有無 | `false` |
+| `domain` | ドメイン名（AGW 使用時） | `.example.com` |
 | `enableBackup` | Azure Backup の有無 | `true` |
-| `enableVmAutoStartStop` | VM 自動起動停止の有効/無効 | `true` |
+| `enableVmAutoStartStop` | VM 自動停止の有効/無効 | `true` |
 | `vmStopTime` | VM 停止時刻 (HHmm) | `1800` |
-| `vmStartTime` | VM 起動時刻 (HHmm) | `0900` |
-| `enableDefender` | Defender for Cloud の有効/無効 | `false` |
-| `enableVmMonitoring` | VM 性能監視の有効/無効 | `false` |
-| `alertEmail` | アラート通知先メールアドレス | `ops@example.com` |
+| `enableDefender` | Defender for Cloud | `false` |
+| `enableVmMonitoring` | VM 性能監視 (AMA + アラート) | `false` |
+| `enableWorm` | ストレージ不変性ポリシー (WORM) | `false` |
+| `wormRetentionDays` | WORM 保持期間（日） | `7` |
+| `alertEmail` | アラート通知先 | `ops@example.com` |
 
-## 4. トラブルシューティング
+> azd 経由で設定する場合の環境変数名は [README.md](../README.md#パラメータ一覧) を参照してください。
+
+## デプロイ後の確認
+
+```bash
+# デプロイしたリソースの一覧
+az resource list --resource-group rg-hub-<prefix>-japaneast-001 -o table
+az resource list --resource-group rg-spoke-<prefix>-japaneast-001 -o table
+
+# Bastion 経由で VM に接続できるか確認
+az network bastion tunnel \
+  --name "bas-<prefix>-japaneast-001" \
+  --resource-group "rg-hub-<prefix>-japaneast-001" \
+  --target-resource-id "$(az vm show -g rg-spoke-<prefix>-japaneast-001 -n vm-cpu-<prefix>-japaneast-001 --query id -o tsv)" \
+  --resource-port 22 --port 50022
+```
+
+接続方法の詳細は [VM リモート接続ガイド](vm-remote-access.md) を参照してください。
+
+## トラブルシューティング
 
 ### リソースプロバイダーの登録エラー
 
-一部のリソースプロバイダーが未登録の場合、デプロイに失敗します。
+`MissingRegistrationForType` が出た場合、該当プロバイダーを登録してください。`azd up` 経由であれば preprovision で自動登録されます。
 
 ```bash
-# 状態確認
 az provider show -n Microsoft.CognitiveServices --query "registrationState"
-
-# 登録
 az provider register --namespace Microsoft.CognitiveServices
 ```
 
 ### EncryptionAtHost エラー
 
-v6 世代の VM で `EncryptionAtHost` 機能が未登録の場合、デプロイが失敗します。
-
-```bash
-az feature register --namespace Microsoft.Compute --name EncryptionAtHost
-az provider register -n Microsoft.Compute
-```
+v6 世代の VM SKU（`Standard_D4s_v6` 等）では `EncryptionAtHost` 機能の登録が必須です。[前提条件](#azure-側の準備)の手順で登録してください。
 
 ### VM SKU のキャパシティエラー
 
-`SkuNotAvailable` エラーが出る場合、指定リージョンで SKU のキャパシティが不足しています。別の SKU に変更してください。
+`SkuNotAvailable` が出た場合、そのリージョンで SKU の在庫が不足しています。別の SKU またはリージョンに変更してください。
 
 ```bash
-# 利用可能な D シリーズの確認
+# japaneast で利用可能な D シリーズの確認
 az vm list-sizes --location japaneast -o tsv | grep -E "Standard_D[0-9]+s_v[56]"
 ```
 
 ### GPU VM のクォータエラー
 
-GPU VM の SKU にはクォータ制限があります。
+GPU SKU にはサブスクリプション単位のクォータ制限があります。`QuotaExceeded` が出る場合はクォータ引き上げを申請してください。
 
 ```bash
 # 現在のクォータ確認
@@ -313,15 +287,10 @@ az quota update \
   --resource-type dedicated
 ```
 
-### What-If で事前確認
+### デプロイがタイムアウトする
 
-デプロイ前に変更内容を確認できます。
+GPU VM の cloud-init（CUDA ドライバのインストール等）には 15-30 分かかります。`az deployment sub show` でデプロイのステータスを確認し、まだ進行中であれば待ってください。
 
 ```bash
-az deployment sub what-if \
-  --location japaneast \
-  --template-file infra/main.bicep \
-  --parameters infra/parameters/dev.bicepparam \
-  --parameters sshPublicKey="$(cat infra/keys/id_rsa.pub)" \
-  --parameters principalId="$(az ad signed-in-user show --query id -o tsv)"
+az deployment sub show --name deploy-spoke --query "properties.provisioningState" -o tsv
 ```

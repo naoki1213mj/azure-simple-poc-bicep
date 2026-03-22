@@ -55,10 +55,10 @@ bootcmd:
   - sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo
   - sudo dnf clean all
   - sudo dnf -y install cuda-toolkit-12-4
-  # Python 3.12
-  - sudo dnf install -y python3.12 python3.12-devel
-  - sudo alternatives --install /usr/bin/python python /usr/bin/python3.12 10
-  - sudo alternatives --set python /usr/bin/python3.12
+  # Python 3.14
+  - sudo dnf install -y python3.14 python3.14-devel
+  - sudo alternatives --install /usr/bin/python python /usr/bin/python3.14 10
+  - sudo alternatives --set python /usr/bin/python3.14
   - wget https://bootstrap.pypa.io/get-pip.py && python get-pip.py && rm get-pip.py
   # NVIDIA Container Toolkit 1.17.4
   - sudo dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel9/x86_64/cuda-rhel9.repo

@@ -30,6 +30,10 @@
 | VNet Flow Log (Hub) | 常に取得 | なし | - | - | `scripts/postprovision.sh` |
 | VNet Flow Log (Spoke) | 常に取得 | なし | - | - | `scripts/postprovision.sh` |
 | Traffic Analytics | 常に取得 | なし | - | - | `scripts/postprovision.sh` |
+| Hub VNet 診断ログ | 常に取得 | なし | - | - | `infra/modules/hub.bicep` (AVM diagnosticSettings) |
+| Spoke VNet 診断ログ | 常に取得 | なし | - | - | `infra/modules/spoke.bicep` (AVM diagnosticSettings) |
+| Bastion 診断ログ | 常に取得 | なし | - | - | `infra/modules/hub.bicep` (AVM diagnosticSettings) |
+| NSG 診断ログ (Bastion/AGW/VM/PEP) | 常に取得 | なし | - | - | `infra/modules/hub.bicep`, `spoke.bicep` (AVM diagnosticSettings) |
 | AGW アクセスログ | 条件付き | あり | `enableAppGateway` | `false` | `infra/modules/hub.bicep` (AVM diagnosticSettings) |
 | AGW パフォーマンスログ | 条件付き | あり | `enableAppGateway` | `false` | `infra/modules/hub.bicep` (AVM diagnosticSettings) |
 | AGW WAF ログ | 条件付き | あり | `enableAppGateway` | `false` | `infra/modules/hub.bicep` (AVM diagnosticSettings) |
@@ -52,46 +56,33 @@
 
 ## Entra ID（旧 Azure AD）
 
-すべて `main.bicep` の `aadLogs` リソースで設定。パラメータ `enlog_Collection_enable`（旧版）→ AVM版では `main.bicep` 内で直接制御。
+現在のテンプレートでは Entra ID ログの自動収集は実装されていません。必要な場合はテナントレベルの診断設定を手動で追加してください。
 
-| ログ種別 | 取得状況 | パラメータ制御 | デフォルト |
-|---|---|---|---|
-| AuditLogs | 条件付き | あり | 収集する |
-| SignInLogs | 条件付き | あり | 収集する |
-| NonInteractiveUserSignInLogs | 条件付き | あり | 収集する |
-| ServicePrincipalSignInLogs | 条件付き | あり | 収集する |
-| ManagedIdentitySignInLogs | 条件付き | あり | 収集する |
-| ProvisioningLogs | 条件付き | あり | 収集する |
-| ADFSSignInLogs | 条件付き | あり | 収集する |
-| RiskyUsers | 条件付き | あり | 収集する |
-| UserRiskEvents | 条件付き | あり | 収集する |
-| NetworkAccessTrafficLogs | 条件付き | あり | 収集する |
-| RiskyServicePrincipals | 条件付き | あり | 収集する |
-| ServicePrincipalRiskEvents | 条件付き | あり | 収集する |
-| EnrichedOffice365AuditLogs | 条件付き | あり | 収集する |
-| MicrosoftGraphActivityLogs | 条件付き | あり | 収集する |
-| RemoteNetworkHealthLogs | 条件付き | あり | 収集する |
-| NetworkAccessAlerts | 条件付き | あり | 収集する |
-| NetworkAccessConnectionEvents | 条件付き | あり | 収集する |
-| MicrosoftServicePrincipalSignInLogs | 条件付き | あり | 収集する |
-| AzureADGraphActivityLogs | 条件付き | あり | 収集する |
+```bash
+# Entra ID ログを Log Analytics に転送（テナントのセキュリティ管理者ロールが必要）
+az monitor diagnostic-settings create \
+  --name "entra-to-law" \
+  --resource "/providers/Microsoft.aadiam/diagnosticSettings" \
+  --workspace "<Log Analytics Workspace ID>" \
+  --logs '[{"category":"AuditLogs","enabled":true},{"category":"SignInLogs","enabled":true}]'
+```
 
 > Entra ID ログの収集にはテナントレベルの**セキュリティ管理者**ロールが必要です。
 
 ## サブスクリプション アクティビティログ
 
-すべて `main.bicep` の `diagnosticLogs_active` リソースで設定。
+`main.bicep` の `activityLogDiag` リソースで設定。常に Log Analytics に転送されます。
 
-| ログ種別 | 取得状況 | パラメータ制御 | デフォルト |
-|---|---|---|---|
-| Administrative | 条件付き | あり | 収集する |
-| Security | 条件付き | あり | 収集する |
-| ServiceHealth | 条件付き | あり | 収集する |
-| Alert | 条件付き | あり | 収集する |
-| Recommendation | 条件付き | あり | 収集する |
-| Policy | 条件付き | あり | 収集する |
-| Autoscale | 条件付き | あり | 収集する |
-| ResourceHealth | 条件付き | あり | 収集する |
+| ログ種別 | 取得状況 | 備考 |
+|---|---|---|
+| Administrative | 常に取得 | |
+| Security | 常に取得 | |
+| Alert | 常に取得 | |
+| Policy | 常に取得 | |
+| ServiceHealth | **未取得** | 必要な場合は diagnosticSettings に追加 |
+| Recommendation | **未取得** | 必要な場合は diagnosticSettings に追加 |
+| Autoscale | **未取得** | 必要な場合は diagnosticSettings に追加 |
+| ResourceHealth | **未取得** | 必要な場合は diagnosticSettings に追加 |
 
 ## ストレージアカウント
 

@@ -86,7 +86,6 @@ graph TB
                 subgraph pepSN["snet-pep"]
                     PE_Blob["PE: Blob"]
                     PE_AIS["PE: AI Services"]
-                    PE_KV["PE: Key Vault"]
                 end
             end
             Storage["Storage"]
@@ -104,7 +103,6 @@ graph TB
     GPU -.->|"Managed ID"| AIS
     PE_Blob --- Storage
     PE_AIS --- AIS
-    PE_KV --- KV
 ```
 
 </details>
@@ -113,8 +111,8 @@ graph TB
 
 ### 前提条件
 
-- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) v2.72.0+
-- [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) v1.10.0+
+- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) v2.80.0+
+- [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) v1.16.0+
 - Azure サブスクリプション（**所有者**ロール）
 
 ### 3 ステップでデプロイ
@@ -166,7 +164,7 @@ azd down
 
 ### サブスクリプションレベル
 - Microsoft Defender for Cloud ※オプション
-- アクティビティログ / Entra ID ログ収集
+- アクティビティログ → Log Analytics 転送
 
 ## パラメータ一覧
 
@@ -184,6 +182,8 @@ azd down
 | `VM_PATTERN` | 1:CPU / 2:GPU / 3:両方 | `3` |
 | `CPUVM_NUMBER` / `GPUVM_NUMBER` | VM 台数 | `1` / `1` |
 | `CPUVM_SKU` / `GPUVM_SKU` | VM SKU | `Standard_D8as_v5` / `Standard_NC24ads_A100_v4` |
+| `CPUVM_DATADISK_SIZE` / `GPUVM_DATADISK_SIZE` | データディスク (GB) | `512` / `1536` |
+| `VM_USER` | VM 管理者ユーザー名 | `azureuser` |
 
 ### Microsoft Foundry
 
@@ -199,7 +199,9 @@ azd down
 | `HUB_ADDRESS_PREFIX` | Hub VNet CIDR | `10.0.0.0/16` |
 | `SPOKE_ADDRESS_PREFIX` | Spoke VNet CIDR | `10.1.0.0/16` |
 | `OPERATOR_ALLOW_IP` | 運用者 IP | `203.0.113.0/24` |
+| `CUSTOMER_ALLOW_IP` | エンドユーザー IP | `192.0.2.0/24` |
 | `ENABLE_APP_GATEWAY` | AGW 有効 | `false` |
+| `DOMAIN` | ドメイン名（AGW 使用時） | `.example.com` |
 
 ### セキュリティ・監視
 
@@ -208,9 +210,9 @@ azd down
 | `ENABLE_DEFENDER` | Defender for Cloud | `false` |
 | `ENABLE_BACKUP` | Azure Backup | `true` |
 | `ENABLE_WORM` | ストレージ不変性ポリシー | `false` |
+| `WORM_RETENTION_DAYS` | WORM 保持期間（日） | `7` |
 | `ENABLE_VM_AUTO_STOP` | VM 自動停止 | `true` |
 | `VM_STOP_TIME` | VM 停止時刻 (HHmm) | `1800` |
-| `VM_START_TIME` | VM 起動時刻 (HHmm) | `0900` |
 | `ENABLE_VM_MONITORING` | VM 性能監視 (AMA + アラート) | `false` |
 | `ALERT_EMAIL` | アラート通知先メール | `ops@example.com` |
 
@@ -222,11 +224,11 @@ azd down
 |---|---|
 | WAF Prevention (DRS 2.1 + BotManager) | ✅ |
 | NSG per subnet (ホワイトリスト方式) | ✅ |
-| 全データサービスに Private Endpoint | ✅ |
-| Key Vault RBAC + Purge Protection + SoftDelete 90日 | ✅ |
+| Storage / AI Services に Private Endpoint | ✅ |
+| Key Vault RBAC + Purge Protection + SoftDelete 90日 + IP ACL | ✅ |
 | Storage TLS 1.2 + HTTPS Only + 共有キー無効 + 二重暗号化 | ✅ |
 | VM SSH Key Only + Trusted Launch + Secure Boot | ✅ |
-| Bastion セッション記録 + コピーペースト無効 | ✅ |
+| Bastion Standard SKU (IP Connect + ファイルコピー有効) | ✅ |
 | NVIDIA ドライバ SHA256 チェックサム検証 | ✅ |
 | CI/CD OIDC 認証 + Azure ID 二重マスク | ✅ |
 | 重要リソースに CanNotDelete ロック | ✅ |
@@ -317,7 +319,7 @@ PR 作成 ──→ CI (ci.yml) ──→ マージ ──→ CD (cd.yml)
 ├── azure.yaml                    # azd 設定
 ├── infra/
 │   ├── main.bicep                # エントリポイント
-│   ├── main.bicepparam           # azd パラメータ
+│   ├── main.bicepparam           # azd パラメータ（環境変数連携）
 │   ├── modules/
 │   │   ├── hub.bicep             # Hub (VNet, Bastion, AGW, DNS) - AVM
 │   │   ├── spoke.bicep           # Spoke (VM, KV, Storage, AI) - AVM
@@ -351,6 +353,9 @@ PR 作成 ──→ CI (ci.yml) ──→ マージ ──→ CD (cd.yml)
 | Key Vault | `kv-{prefix}-{unique}` | `kv-dev0001-a1b2c3` |
 | Storage | `st{prefix}{unique}` | `stdev0001x7y8z9` |
 | AI Services | `ais-{prefix}-{location}-001` | `ais-dev0001-japaneast-001` |
+| VM | `vm-{type}-{prefix}-{location}-{nnn}` | `vm-cpu-dev0001-japaneast-001` |
+| NAT Gateway | `nat-{prefix}-{location}-001` | `nat-dev0001-japaneast-001` |
+| NSG | `nsg-{role}-{prefix}-{location}-001` | `nsg-vm-dev0001-japaneast-001` |
 
 ## ドキュメント
 

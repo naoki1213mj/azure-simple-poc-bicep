@@ -4,7 +4,7 @@
 
 ## アーキテクチャ図
 
-[architecture.drawio](architecture.drawio) を draw.io や VS Code の Draw.io 拡張機能で開くと、2パターンの構成図を確認できます。
+[architecture-hubspoke.drawio](../images/architecture-hubspoke.drawio) を draw.io や VS Code の Draw.io 拡張機能で開くと、構成図を確認できます。
 
 | タブ | 内容 |
 |---|---|
@@ -26,12 +26,3 @@
 | 9 | [共有ストレージ作成手順書](shared-storage.md) | 複数 VM への NFS 共有ストレージマウント |
 | 10 | [ログ収集一覧](log-collection-reference.md) | 収集可能なログの種類・取得状況・設定箇所 |
 | 11 | [コスト見積もりガイド](cost-estimate.md) | dev / prod 環境の月額概算コスト・削減ヒント |
-
-## 付録（参考資料）
-
-| # | ファイル | 内容 |
-|---|---|---|
-| 1 | PoC環境テンプレート_Azure_構築後確認項目.xlsx | デプロイ後の設定確認チェックリスト |
-| 2 | PoC環境テンプレート_ログ取得一覧.xlsx | ログ収集対象一覧 |
-| 3 | PoC環境テンプレート_概算見積もり.xlsx | 概算コスト見積もり参考例 |
-| 4 | PoC環境テンプレート_構成図.pptx | アーキテクチャ構成図 |

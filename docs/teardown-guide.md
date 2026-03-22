@@ -1,39 +1,25 @@
 # 環境削除手順書   <!-- omit in toc -->
 
-Hub-Spoke PoC 環境を安全に削除する手順です。リソース間の依存関係があるため、以下の順序で削除してください。
+Hub-Spoke PoC 環境の削除手順です。リソースロック・バックアップ・論理削除などの依存があるため、記載順に実行してください。
 
 ## 目次   <!-- omit in toc -->
 
 - [前提条件](#前提条件)
 - [azd を使った削除（推奨）](#azd-を使った削除推奨)
 - [手動削除](#手動削除)
-  - [1. Recovery Services コンテナー削除](#1-recovery-services-コンテナー削除)
-    - [Azure Portal の場合](#azure-portal-の場合)
-    - [Azure CLI の場合](#azure-cli-の場合)
-  - [2. Microsoft Foundry モデル削除](#2-microsoft-foundry-モデル削除)
-    - [Azure Portal の場合](#azure-portal-の場合-1)
-    - [Azure CLI の場合](#azure-cli-の場合-1)
-  - [3. Automation アカウントの jobSchedule 設定削除](#3-automation-アカウントの-jobschedule-設定削除)
-    - [Azure Portal の場合](#azure-portal-の場合-2)
-    - [Azure CLI の場合](#azure-cli-の場合-2)
-  - [4. Spoke リソースグループの削除](#4-spoke-リソースグループの削除)
-    - [Azure Portal の場合](#azure-portal-の場合-3)
-    - [Azure CLI の場合](#azure-cli-の場合-3)
-  - [5. Hub リソースグループの削除](#5-hub-リソースグループの削除)
-  - [6. NSG フローログの削除](#6-nsg-フローログの削除)
-    - [Azure Portal の場合](#azure-portal-の場合-4)
-    - [Azure CLI の場合](#azure-cli-の場合-4)
-  - [7. デプロイおよびデプロイスタックの削除](#7-デプロイおよびデプロイスタックの削除)
-    - [Azure Portal の場合](#azure-portal-の場合-5)
-    - [Azure CLI の場合](#azure-cli-の場合-5)
-  - [8. 論理削除リソースの削除](#8-論理削除リソースの削除)
-    - [Key Vault の消去](#key-vault-の消去)
-    - [AI Services リソースの消去](#ai-services-リソースの消去)
-- [付録: ストレージアカウント WORM 有効時の削除](#付録-ストレージアカウント-worm-有効時の削除)
+  - [0. リソースロックの解除](#0-リソースロックの解除)
+  - [1. Recovery Services コンテナーの保護停止](#1-recovery-services-コンテナーの保護停止)
+  - [2. AI Services モデルの削除](#2-ai-services-モデルの削除)
+  - [3. Automation スケジュールの削除](#3-automation-スケジュールの削除)
+  - [4. リソースグループの削除](#4-リソースグループの削除)
+  - [5. VNet Flow Log の削除](#5-vnet-flow-log-の削除)
+  - [6. サブスクリプションレベルのデプロイ削除](#6-サブスクリプションレベルのデプロイ削除)
+  - [7. 論理削除リソースの消去](#7-論理削除リソースの消去)
+- [付録: WORM 有効時のストレージ削除](#付録-worm-有効時のストレージ削除)
 
 ## 前提条件
 
-- サブスクリプションに **所有者 (Owner)** ロールが付与されていること
+- サブスクリプションの**所有者 (Owner)** ロール
 
 ## azd を使った削除（推奨）
 
@@ -41,35 +27,42 @@ Hub-Spoke PoC 環境を安全に削除する手順です。リソース間の依
 azd down
 ```
 
-> **注意**: `azd down` ではリソースロック付きリソースや論理削除リソースの消去は行われません。
-> 以下の手動手順で残りのリソースを確認・削除してください。
+`azd down` ではリソースロック付きリソースと論理削除リソースの消去は行われません。削除後、以下の手動手順で残存リソースを確認してください。
 
 ## 手動削除
 
-### 1. Recovery Services コンテナー削除
+以下、`<prefix>` はデプロイ時に指定したプレフィックス（例: `dev0001`）に読み替えてください。
 
-バックアップが有効な場合、リソースグループ削除前に Recovery Services コンテナーの保護を停止する必要があります。
+### 0. リソースロックの解除
 
-#### Azure Portal の場合
+VNet / Bastion / DNS Zone / Key Vault / Storage / Log Analytics にリソースロックが設定されています。リソースグループを削除する前にロックを解除してください。
 
-１．Azure Portal で「Recovery Services コンテナー」を検索し、`rsv-<prefix>-japaneast-001` を開く。
+```bash
+# Spoke RG のロック一覧
+az lock list --resource-group "rg-spoke-<prefix>-japaneast-001" -o table
 
-２．左ペイン → **設定** → **プロパティ** → 「論理的な削除とセキュリティの設定」の「更新」をクリック。
+# 各ロックを削除
+az lock delete --name "lock-vnet-spoke" --resource-group "rg-spoke-<prefix>-japaneast-001"
+az lock delete --name "lock-law" --resource-group "rg-spoke-<prefix>-japaneast-001"
+az lock delete --name "lock-kv" --resource-group "rg-spoke-<prefix>-japaneast-001"
+az lock delete --name "lock-st" --resource-group "rg-spoke-<prefix>-japaneast-001"
 
-３．以下の設定に変更し「更新」をクリック:
+# Hub RG のロック一覧
+az lock list --resource-group "rg-hub-<prefix>-japaneast-001" -o table
 
-| 設定項目 | 設定値 |
-|---|---|
-| クラウド ワークロードの論理的な削除を有効にする | OFF |
-| ハイブリッド ワークロードの論理的な削除とセキュリティ設定を有効にする | OFF |
+# 各ロックを削除
+az lock delete --name "lock-vnet-hub" --resource-group "rg-hub-<prefix>-japaneast-001"
+az lock delete --name "lock-bastion" --resource-group "rg-hub-<prefix>-japaneast-001"
+az lock delete --name "lock-pdz-blob" --resource-group "rg-hub-<prefix>-japaneast-001"
+az lock delete --name "lock-pdz-cog" --resource-group "rg-hub-<prefix>-japaneast-001"
+az lock delete --name "lock-pdz-vault" --resource-group "rg-hub-<prefix>-japaneast-001"
+```
 
-４．左ペイン → **保護されたアイテム** → **バックアップアイテム** → 「Azure Virtual Machine」を開く。
+Azure Portal の場合は、各リソース → **設定** → **ロック** から削除できます。
 
-５．各 VM の「…」→「**バックアップの停止**」をクリックし、「**バックアップデータの削除**」を選択して停止。
+### 1. Recovery Services コンテナーの保護停止
 
-６．すべてのバックアップ項目の数が「0」になることを確認。
-
-#### Azure CLI の場合
+`enableBackup = true` でデプロイした場合のみ必要です。
 
 ```bash
 VAULT_NAME="rsv-<prefix>-japaneast-001"
@@ -80,12 +73,12 @@ az backup vault backup-properties set \
   --name "$VAULT_NAME" --resource-group "$RG" \
   --soft-delete-feature-state Disable
 
-# 保護されたアイテムの一覧取得
+# 保護されたアイテムの確認
 az backup item list \
   --vault-name "$VAULT_NAME" --resource-group "$RG" \
   --backup-management-type AzureIaasVM -o table
 
-# 各VMのバックアップ停止+データ削除
+# 各 VM のバックアップ停止 + データ削除
 az backup protection disable \
   --vault-name "$VAULT_NAME" --resource-group "$RG" \
   --container-name "iaasvmcontainerv2;$RG;<VM名>" \
@@ -93,25 +86,17 @@ az backup protection disable \
   --delete-backup-data true --yes
 ```
 
-### 2. Microsoft Foundry モデル削除
+Azure Portal の場合: Recovery Services コンテナー → **プロパティ** → 論理的な削除を OFF → **バックアップアイテム** → 各 VM の「バックアップの停止」→「バックアップデータの削除」。
 
-#### Azure Portal の場合
+### 2. AI Services モデルの削除
 
-１．Azure Portal で `ais-<prefix>-japaneast-001` を検索して開く。
-
-２．「**Go to Microsoft Foundry portal**」をクリック。
-
-３．左ペイン → **deployment** → 各モデルをチェックして「**削除**」をクリック。
-
-４．すべてのモデルが表示されなくなることを確認。
-
-#### Azure CLI の場合
+`enableFoundry = true` でデプロイした場合のみ必要です。
 
 ```bash
 AIS_NAME="ais-<prefix>-japaneast-001"
 RG="rg-spoke-<prefix>-japaneast-001"
 
-# デプロイ済みモデルの一覧
+# デプロイ済みモデル一覧
 az cognitiveservices account deployment list \
   --name "$AIS_NAME" --resource-group "$RG" -o table
 
@@ -121,17 +106,9 @@ az cognitiveservices account deployment delete \
   --deployment-name "<モデル名>" --yes
 ```
 
-### 3. Automation アカウントの jobSchedule 設定削除
+### 3. Automation スケジュールの削除
 
-#### Azure Portal の場合
-
-１．Azure Portal で `aa-<prefix>-japaneast-001` を検索して開く。
-
-２．左ペイン → **共有リソース** → **スケジュール** を開く。
-
-３．各スケジュール（`am-rbsc-cpuvm-spoke-*` / `am-rbsc-gpuvm-spoke-*`）を選択して「**削除**」。
-
-#### Azure CLI の場合
+`enableVmAutoStartStop = true` でデプロイした場合のみ必要です。
 
 ```bash
 AA_NAME="aa-<prefix>-japaneast-001"
@@ -141,51 +118,29 @@ RG="rg-spoke-<prefix>-japaneast-001"
 az automation schedule list \
   --automation-account-name "$AA_NAME" --resource-group "$RG" -o table
 
-# 各スケジュールを削除
+# 各スケジュールを削除（start-cpuvm-001 等）
 az automation schedule delete \
   --automation-account-name "$AA_NAME" --resource-group "$RG" \
   --name "<スケジュール名>" --yes
 ```
 
-### 4. Spoke リソースグループの削除
+### 4. リソースグループの削除
 
-#### Azure Portal の場合
-
-１．リソースグループ `rg-spoke-<prefix>-japaneast-001` を開く。
-
-２．「**リソースグループの削除**」をクリック。
-
-３．「選択した仮想マシンと仮想マシンスケールセットに対して強制削除を適用する」にチェックを入れ、リソースグループ名を入力して「**削除**」。
-
-#### Azure CLI の場合
+ロック解除と依存リソースの処理が完了したら、リソースグループを削除します。
 
 ```bash
+# Spoke → Hub の順で削除（Peering の依存方向）
 az group delete --name "rg-spoke-<prefix>-japaneast-001" --yes --no-wait
-```
-
-### 5. Hub リソースグループの削除
-
-`rg-hub-<prefix>-japaneast-001` に対して、手順 4 と同様に削除を実行。
-
-```bash
 az group delete --name "rg-hub-<prefix>-japaneast-001" --yes --no-wait
 ```
 
-### 6. NSG フローログの削除
+Azure Portal の場合: リソースグループ → 「リソースグループの削除」→「強制削除を適用する」にチェック → リソースグループ名を入力して削除。
 
-#### Azure Portal の場合
+### 5. VNet Flow Log の削除
 
-１．Azure Portal で「**Network Watcher**」を検索して開く。
-
-２．左ペイン → **フローログ** → `<prefix>` で始まるものをすべてチェックして「**削除**」。
-
-#### Azure CLI の場合
+postprovision で作成された VNet Flow Log はリソースグループ外に残ります。
 
 ```bash
-# フローログの一覧
-az network watcher flow-log list --location japaneast -o table
-
-# 各フローログを削除
 az network watcher flow-log delete \
   --location japaneast \
   --name "flowLog-hub-<prefix>-japaneast-001"
@@ -195,119 +150,74 @@ az network watcher flow-log delete \
   --name "flowLog-spoke-<prefix>-japaneast-001"
 ```
 
-### 7. デプロイおよびデプロイスタックの削除
-
-#### Azure Portal の場合
-
-１．Azure Portal → **サブスクリプション** → 対象サブスクリプション → 左ペイン **デプロイ**。
-
-２．`<prefix>` で始まるデプロイにチェックを入れ「**削除**」。
-
-３．左ペイン → **デプロイスタック** → `<prefix>` にチェック → 「**スタックの削除**」。
-
-４．「リソースとリソースグループをデタッチする」を選択して削除。
-
-#### Azure CLI の場合
+### 6. サブスクリプションレベルのデプロイ削除
 
 ```bash
-# デプロイの削除
-az deployment sub delete --name "<prefix>"
+# デプロイ履歴の削除
+az deployment sub delete --name "deploy-hub"
+az deployment sub delete --name "deploy-spoke"
+az deployment sub delete --name "deploy-log-analytics"
 
-# デプロイスタックの削除（リソースをデタッチ）
-az stack sub delete \
-  --name "<prefix>" \
-  --action-on-unmanage detachAll --yes
+# デプロイスタックがある場合
+az stack sub delete --name "<prefix>" --action-on-unmanage detachAll --yes
 ```
 
-### 8. 論理削除リソースの削除
+### 7. 論理削除リソースの消去
 
-#### Key Vault の消去
-
-```bash
-az keyvault purge --name "kv-<prefix>-japaneast"
-```
-
-または、Azure Portal で:
-１．**キーコンテナー** → 「**削除されたコンテナーの管理**」→ 対象を選択して「**消去**」。
-
-#### AI Services リソースの消去
+Key Vault と AI Services は論理削除（ソフトデリート）されます。完全に消去するには以下を実行してください。
 
 ```bash
+# Key Vault の消去
+az keyvault purge --name "kv-<prefix>-<hash>"
+
+# AI Services の消去（リージョンは foundryLocation に合わせる）
 az cognitiveservices account purge \
   --name "ais-<prefix>-japaneast-001" \
   --resource-group "rg-spoke-<prefix>-japaneast-001" \
-  --location "<location>"
+  --location "eastus2"
 ```
 
-## 付録: ストレージアカウント WORM 有効時の削除
+> AI Services のリージョンは `foundryLocation` パラメータで指定した値です（デフォルト: `eastus2`）。
 
-WORM（不変性ポリシー）が有効なストレージアカウントを削除するには、追加手順が必要です。
+## 付録: WORM 有効時のストレージ削除
 
-１．Azure Portal で `st<prefix>japaneast` を開く。
+`enableWorm = true` でデプロイした場合、ストレージアカウントに不変性ポリシーが設定されています。通常のリソースグループ削除ではストレージ削除が失敗する場合があります。
 
-２．左ペイン → **データ管理** → **データ保護** → 「**ポリシーの管理**」→ 時間ベースの保持を「**削除**」。
+```bash
+ST_NAME="st<prefix><hash>"
+RG="rg-spoke-<prefix>-japaneast-001"
 
-３．左ペイン → **セキュリティとネットワーク** → **ネットワーク** → **Public network access** を「**Enable**」に変更して「**Save**」。
+# パブリックアクセスを一時的に有効化（PE 経由でないとアクセスできないため）
+az storage account update \
+  --name "$ST_NAME" --resource-group "$RG" \
+  --public-network-access Enabled
+```
 
-> **CLI でのネットワーク公開設定変更:**
->
->
-> ```bash
-> az storage account update \
->   --name "st<prefix>japaneast" \
->   --resource-group "rg-spoke-<prefix>-japaneast-001" \
->   --public-network-access Enabled
-> ```
-
-４．Cloud Shell（PowerShell）で以下のスクリプトを実行:
+Cloud Shell（PowerShell）で不変性ポリシーを解除してから Blob を削除します。
 
 ```powershell
 $StorageAccountName = "<ストレージアカウント名>"
 $StorageAccountAccessKey = "<アクセスキー>"
 
-# 全コンテナーの不変性ポリシーを解除してBlob削除
-$containers = @(
-  "am-azkvauditlogs"
-  "insights-logs-flowlogflowevent"
-  "am-heartbeat"
-  "am-perf"
-  "am-syslog"
-  "am-azureactivity"
-  "am-usage"
-)
+$ctx = New-AzStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $StorageAccountAccessKey
+$containers = Get-AzStorageContainer -Context $ctx
 
-foreach ($containerName in $containers) {
-  $ctx = New-AzStorageContext -StorageAccountName $StorageAccountName -StorageAccountKey $StorageAccountAccessKey
-  $blobs = Get-AzStorageBlob -Container $containerName -Context $ctx -ErrorAction SilentlyContinue
+foreach ($container in $containers) {
+  $blobs = Get-AzStorageBlob -Container $container.Name -Context $ctx -ErrorAction SilentlyContinue
   if ($blobs) {
     foreach ($blob in $blobs) {
       $blob | Remove-AzStorageBlobImmutabilityPolicy -ErrorAction SilentlyContinue
-      Remove-AzStorageBlob -Blob $blob.Name -Container $containerName -Context $ctx -ErrorAction SilentlyContinue
+      Remove-AzStorageBlob -Blob $blob.Name -Container $container.Name -Context $ctx -ErrorAction SilentlyContinue
     }
   }
+  Remove-AzStorageContainer -Name $container.Name -Context $ctx -Force -ErrorAction SilentlyContinue
 }
 ```
 
-> **注意**: `Can not find the container` エラーが表示されても問題ありません。環境によっては存在しないコンテナーがあります。
+> `Can not find the container` エラーは無視して問題ありません。
 
-５．コンテナーとストレージアカウントを削除する。
+PowerShell 実行後、ストレージアカウントを削除します。
 
 ```bash
-# コンテナーの一覧確認
-az storage container list \
-  --account-name "st<prefix>japaneast" \
-  --account-key "<アクセスキー>" -o table
-
-# コンテナー削除
-az storage container delete \
-  --name "<コンテナー名>" \
-  --account-name "st<prefix>japaneast" \
-  --account-key "<アクセスキー>"
-
-# ストレージアカウント削除
-az storage account delete \
-  --name "st<prefix>japaneast" \
-  --resource-group "rg-spoke-<prefix>-japaneast-001" --yes
+az storage account delete --name "$ST_NAME" --resource-group "$RG" --yes
 ```
-
-または Azure Portal で左ペイン → **データストレージ** → **コンテナー** から手動削除し、概要画面から「**削除**」。

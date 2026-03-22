@@ -86,7 +86,6 @@ graph TB
                 subgraph pepSN["snet-pep"]
                     PE_Blob["PE: Blob"]
                     PE_AIS["PE: AI Services"]
-                    PE_KV["PE: Key Vault"]
                 end
             end
             Storage["Storage"]
@@ -104,7 +103,6 @@ graph TB
     GPU -.->|"Managed ID"| AIS
     PE_Blob --- Storage
     PE_AIS --- AIS
-    PE_KV --- KV
 ```
 
 </details>
@@ -113,8 +111,8 @@ graph TB
 
 ### Prerequisites
 
-- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) v2.72.0+
-- [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) v1.10.0+
+- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) v2.80.0+
+- [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd) v1.16.0+
 - Azure Subscription (**Owner** role)
 
 ### Deploy in 3 Steps
@@ -170,7 +168,7 @@ azd down
 ### Subscription Level
 
 - Microsoft Defender for Cloud — optional
-- Activity / Entra ID log collection
+- Activity log → Log Analytics forwarding
 
 ## Parameters
 
@@ -188,6 +186,8 @@ azd down
 | `VM_PATTERN` | 1: CPU / 2: GPU / 3: Both | `3` |
 | `CPUVM_NUMBER` / `GPUVM_NUMBER` | VM count | `1` / `1` |
 | `CPUVM_SKU` / `GPUVM_SKU` | VM SKU | `Standard_D8as_v5` / `Standard_NC24ads_A100_v4` |
+| `CPUVM_DATADISK_SIZE` / `GPUVM_DATADISK_SIZE` | Data disk (GB) | `512` / `1536` |
+| `VM_USER` | VM admin username | `azureuser` |
 
 ### Microsoft Foundry
 
@@ -203,7 +203,9 @@ azd down
 | `HUB_ADDRESS_PREFIX` | Hub VNet CIDR | `10.0.0.0/16` |
 | `SPOKE_ADDRESS_PREFIX` | Spoke VNet CIDR | `10.1.0.0/16` |
 | `OPERATOR_ALLOW_IP` | Operator IP | `203.0.113.0/24` |
+| `CUSTOMER_ALLOW_IP` | End user IP | `192.0.2.0/24` |
 | `ENABLE_APP_GATEWAY` | Enable AGW | `false` |
+| `DOMAIN` | Domain name (for AGW) | `.example.com` |
 
 ### Security & Monitoring
 
@@ -212,9 +214,9 @@ azd down
 | `ENABLE_DEFENDER` | Defender for Cloud | `false` |
 | `ENABLE_BACKUP` | Azure Backup | `true` |
 | `ENABLE_WORM` | Storage immutability | `false` |
+| `WORM_RETENTION_DAYS` | WORM retention (days) | `7` |
 | `ENABLE_VM_AUTO_STOP` | VM auto stop | `true` |
 | `VM_STOP_TIME` | VM stop time (HHmm) | `1800` |
-| `VM_START_TIME` | VM start time (HHmm) | `0900` |
 | `ENABLE_VM_MONITORING` | VM monitoring (AMA + alerts) | `false` |
 | `ALERT_EMAIL` | Alert notification email | `ops@example.com` |
 
@@ -226,11 +228,11 @@ azd down
 |---|---|
 | WAF Prevention (DRS 2.1 + BotManager) | ✅ |
 | NSG per subnet (whitelist) | ✅ |
-| Private Endpoints for all data services | ✅ |
-| Key Vault RBAC + Purge Protection + SoftDelete 90d | ✅ |
+| Private Endpoints for Storage / AI Services | ✅ |
+| Key Vault RBAC + Purge Protection + SoftDelete 90d + IP ACL | ✅ |
 | Storage TLS 1.2 + HTTPS Only + No shared keys + Double encryption | ✅ |
 | VM SSH Key Only + Trusted Launch + Secure Boot | ✅ |
-| Bastion session recording + copy-paste disabled | ✅ |
+| Bastion Standard SKU (IP Connect + File Copy) | ✅ |
 | NVIDIA driver SHA256 checksum verification | ✅ |
 | CI/CD OIDC + Azure ID double masking | ✅ |
 | CanNotDelete locks on critical resources | ✅ |
@@ -319,6 +321,9 @@ PR ──→ CI (ci.yml) ──→ Merge ──→ CD (cd.yml)
 | App Gateway | `agw-{prefix}-{location}-001` | `agw-dev0001-japaneast-001` |
 | Key Vault | `kv-{prefix}-{unique}` | `kv-dev0001-a1b2c3` |
 | AI Services | `ais-{prefix}-{location}-001` | `ais-dev0001-japaneast-001` |
+| VM | `vm-{type}-{prefix}-{location}-{nnn}` | `vm-cpu-dev0001-japaneast-001` |
+| NAT Gateway | `nat-{prefix}-{location}-001` | `nat-dev0001-japaneast-001` |
+| NSG | `nsg-{role}-{prefix}-{location}-001` | `nsg-vm-dev0001-japaneast-001` |
 
 ## Documentation
 

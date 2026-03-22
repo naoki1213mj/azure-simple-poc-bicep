@@ -152,7 +152,7 @@ source $HOME/.local/bin/env
 
 # プロジェクトディレクトリを作成
 mkdir -p ~/workspace && cd ~/workspace
-uv init --python 3.12
+uv init --python 3.14
 
 # Jupyter をインストール
 uv add jupyter
@@ -216,7 +216,7 @@ source $HOME/.local/bin/env
 
 # プロジェクトがない場合は作成
 mkdir -p ~/workspace && cd ~/workspace
-uv init --python 3.12
+uv init --python 3.14
 
 # marimo をインストール
 uv add marimo

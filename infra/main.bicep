@@ -159,6 +159,23 @@ resource spokeRg 'Microsoft.Resources/resourceGroups@2024-03-01' = {
 }
 
 // ============================================================================
+// Log Analytics（Hub/Spoke 両方で使用するため先にデプロイ）
+// ============================================================================
+
+module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.9.1' = {
+  name: 'deploy-log-analytics'
+  scope: spokeRg
+  params: {
+    name: 'log-${prefix}-${location}-001'
+    location: location
+    tags: tags
+    skuName: 'PerGB2018'
+    dataRetention: 90
+    lock: { kind: 'CanNotDelete', name: 'lock-law' }
+  }
+}
+
+// ============================================================================
 // Hub モジュール（Peering なしで先にデプロイ）
 // ============================================================================
 
@@ -173,6 +190,7 @@ module hub 'modules/hub.bicep' = {
     operatorAllowIps: operatorAllowIps
     customerAllowIps: customerAllowIps
     enableAppGateway: enableAppGateway
+    logAnalyticsWorkspaceId: logAnalytics.outputs.resourceId
   }
 }
 
@@ -187,6 +205,7 @@ module spoke 'modules/spoke.bicep' = {
     prefix: prefix
     location: location
     tags: tags
+    logAnalyticsWorkspaceId: logAnalytics.outputs.resourceId
     spokeAddressPrefix: spokeAddressPrefix
     vmUser: vmUser
     sshPublicKey: sshPublicKey
@@ -307,7 +326,7 @@ resource securityContacts 'Microsoft.Security/securityContacts@2023-12-01-previe
 resource activityLogDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = {
   name: 'activity-log-to-law'
   properties: {
-    workspaceId: spoke.outputs.logAnalyticsWorkspaceId
+    workspaceId: logAnalytics.outputs.resourceId
     logs: [
       { category: 'Administrative', enabled: true }
       { category: 'Security', enabled: true }
@@ -324,6 +343,6 @@ resource activityLogDiag 'Microsoft.Insights/diagnosticSettings@2021-05-01-previ
 output hubResourceGroup string = hubRgName
 output spokeResourceGroup string = spokeRgName
 output bastionName string = hub.outputs.bastionName
-output logAnalyticsWorkspaceId string = spoke.outputs.logAnalyticsWorkspaceId
+output logAnalyticsWorkspaceId string = logAnalytics.outputs.resourceId
 output hubVnetName string = hub.outputs.vnetName
 output spokeVnetName string = spoke.outputs.vnetName

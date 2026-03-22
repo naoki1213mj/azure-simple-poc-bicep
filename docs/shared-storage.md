@@ -127,16 +127,16 @@ VM に接続後:
 sudo dnf install -y nfs-utils
 
 # マウントポイント作成
-sudo mkdir -p /datadrive
+sudo mkdir -p /shared
 
 # 手動マウント
 sudo mount -t nfs \
   stfs<prefix>001.file.core.windows.net:/stfs<prefix>001/shared-data \
-  /datadrive \
+  /shared \
   -o vers=4,minorversion=1,sec=sys,nconnect=4
 
 # 自動マウント設定 (/etc/fstab に追記)
-echo "stfs<prefix>001.file.core.windows.net:/stfs<prefix>001/shared-data /datadrive nfs vers=4,minorversion=1,_netdev,nofail,sec=sys 0 0" | sudo tee -a /etc/fstab
+echo "stfs<prefix>001.file.core.windows.net:/stfs<prefix>001/shared-data /shared nfs vers=4,minorversion=1,_netdev,nofail,sec=sys 0 0" | sudo tee -a /etc/fstab
 
 # 再起動して自動マウントを確認
 sudo reboot
@@ -145,10 +145,12 @@ sudo reboot
 再起動後に再接続し、マウントを確認:
 
 ```bash
-df -Th | grep datadrive
+df -Th | grep shared
 ```
 
 期待される出力:
 ```
-stfs<prefix>001.file.core.windows.net:/stfs<prefix>001/shared-data  nfs4  4.0T  0  4.0T  0% /datadrive
+stfs<prefix>001.file.core.windows.net:/stfs<prefix>001/shared-data  nfs4  4.0T  0  4.0T  0% /shared
 ```
+
+> **注意**: `/datadrive` はデータディスク (cloud-init) で使用済みのため、NFS 共有には `/shared` を推奨します。

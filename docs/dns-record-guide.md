@@ -46,7 +46,7 @@ Application Gateway で外部公開する際に、カスタムドメインの DN
 # Application Gateway のパブリック IP を取得
 AGW_IP=$(az network public-ip show \
   --resource-group "rg-hub-<prefix>-japaneast-001" \
-  --name "pip-appgw-hub-<prefix>-japaneast-001" \
+  --name "pip-agw-<prefix>-japaneast-001" \
   --query ipAddress -o tsv)
 
 echo "Application Gateway IP: $AGW_IP"

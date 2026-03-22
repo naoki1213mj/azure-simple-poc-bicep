@@ -66,6 +66,9 @@ param enableVmAutoStartStop bool
 @description('VM 停止時刻')
 param vmStopTime string
 
+@description('VM 起動時刻')
+param vmStartTime string
+
 @description('WORM 有効/無効')
 param enableWorm bool
 
@@ -110,6 +113,9 @@ module nsgVm 'br/public:avm/res/network/network-security-group:0.5.0' = {
     name: 'nsg-vm-${prefix}-${location}-001'
     location: location
     tags: tags
+    diagnosticSettings: [
+      { workspaceResourceId: logAnalyticsWorkspaceId }
+    ]
     securityRules: [
       { name: 'Allow-AzureLoadBalancer', properties: { priority: 100, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: 'AzureLoadBalancer', destinationAddressPrefix: '*' } }
       { name: 'Allow-Hub-Inbound', properties: { priority: 1000, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '10.0.0.0/16', destinationAddressPrefix: '*' } }
@@ -130,6 +136,13 @@ module nsgPep 'br/public:avm/res/network/network-security-group:0.5.0' = {
     name: 'nsg-pep-${prefix}-${location}-001'
     location: location
     tags: tags
+    diagnosticSettings: [
+      { workspaceResourceId: logAnalyticsWorkspaceId }
+    ]
+    securityRules: [
+      { name: 'Allow-VNet-Inbound', properties: { priority: 100, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '443', sourceAddressPrefix: 'VirtualNetwork', destinationAddressPrefix: '*' } }
+      { name: 'Deny-All-Inbound', properties: { priority: 4000, direction: 'Inbound', access: 'Deny', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: '*', destinationAddressPrefix: '*' } }
+    ]
   }
 }
 
@@ -160,6 +173,10 @@ module vnet 'br/public:avm/res/network/virtual-network:0.5.2' = {
     name: 'vnet-spoke-${prefix}-${location}-001'
     location: location
     tags: tags
+    lock: { kind: 'CanNotDelete', name: 'lock-vnet-spoke' }
+    diagnosticSettings: [
+      { workspaceResourceId: logAnalyticsWorkspaceId }
+    ]
     addressPrefixes: [spokeAddressPrefix]
     subnets: [
       {
@@ -178,19 +195,11 @@ module vnet 'br/public:avm/res/network/virtual-network:0.5.2' = {
 }
 
 // ============================================================================
-// Log Analytics (AVM)
+// Log Analytics（main.bicep から ID を受け取る）
 // ============================================================================
 
-module logAnalytics 'br/public:avm/res/operational-insights/workspace:0.9.1' = {
-  name: 'deploy-log-analytics'
-  params: {
-    name: 'log-${prefix}-${location}-001'
-    location: location
-    tags: tags
-    skuName: 'PerGB2018'
-    dataRetention: 90
-  }
-}
+@description('Log Analytics Workspace リソース ID')
+param logAnalyticsWorkspaceId string
 
 // ============================================================================
 // Key Vault (AVM)
@@ -213,7 +222,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.11.0' = {
       ipRules: [for ip in operatorAllowIps: { value: ip }]
     }
     diagnosticSettings: [
-      { workspaceResourceId: logAnalytics.outputs.resourceId }
+      { workspaceResourceId: logAnalyticsWorkspaceId }
     ]
     lock: { kind: 'CanNotDelete', name: 'lock-kv' }
     roleAssignments: [
@@ -250,8 +259,23 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.15.0' = {
       containerDeleteRetentionPolicyEnabled: true
       containerDeleteRetentionPolicyDays: 7
     }
+    managementPolicyRules: enableWorm ? [
+      {
+        enabled: true
+        name: 'worm-retention'
+        type: 'Lifecycle'
+        definition: {
+          actions: {
+            version: {
+              delete: { daysAfterCreationGreaterThan: wormRetentionDays }
+            }
+          }
+          filters: { blobTypes: ['blockBlob'] }
+        }
+      }
+    ] : []
     diagnosticSettings: [
-      { workspaceResourceId: logAnalytics.outputs.resourceId }
+      { workspaceResourceId: logAnalyticsWorkspaceId }
     ]
     lock: { kind: 'CanNotDelete', name: 'lock-st' }
     privateEndpoints: [
@@ -448,7 +472,7 @@ module aiServices 'br/public:avm/res/cognitive-services/account:0.10.0' = if (en
       sku: { name: model.sku, capacity: model.capacity }
     }]
     diagnosticSettings: [
-      { workspaceResourceId: logAnalytics.outputs.resourceId }
+      { workspaceResourceId: logAnalyticsWorkspaceId }
     ]
     privateEndpoints: [
       {
@@ -520,13 +544,13 @@ resource scheduledQueryRules 'Microsoft.Insights/scheduledQueryRules@2023-03-15-
     enabled: true
     evaluationFrequency: 'PT5M'
     windowSize: 'PT15M'
-    scopes: [logAnalytics.outputs.resourceId]
+    scopes: [logAnalyticsWorkspaceId]
     targetResourceTypes: ['Microsoft.Compute/virtualMachines']
     criteria: {
       allOf: [
         {
           query: rule.query
-          timeAggregation: 'Count'
+          timeAggregation: 'Average'
           operator: 'GreaterThan'
           threshold: 0
           failingPeriods: { numberOfEvaluationPeriods: 3, minFailingPeriodsToAlert: 2 }
@@ -582,7 +606,7 @@ resource dataCollectionRule 'Microsoft.Insights/dataCollectionRules@2022-06-01' 
     }
     destinations: {
       logAnalytics: [
-        { workspaceResourceId: logAnalytics.outputs.resourceId, name: 'logAnalytics' }
+        { workspaceResourceId: logAnalyticsWorkspaceId, name: 'logAnalytics' }
       ]
     }
     dataFlows: [
@@ -654,9 +678,6 @@ resource gpuVmDcrAssociation 'Microsoft.Insights/dataCollectionRuleAssociations@
 // VM 自動起動（Azure Automation）
 // ============================================================================
 
-@description('VM 起動時刻 (HHmm)')
-param vmStartTime string = '0900'
-
 resource automationAccount 'Microsoft.Automation/automationAccounts@2023-11-01' = if (enableVmAutoStartStop) {
   name: 'aa-${prefix}-${location}-001'
   location: location
@@ -698,6 +719,7 @@ resource cpuVmStartSchedule 'Microsoft.Automation/automationAccounts/schedules@2
   properties: {
     frequency: 'Day'
     interval: 1
+    startTime: '${substring(vmStartTime, 0, 2)}:${substring(vmStartTime, 2, 2)}'
     timeZone: 'Tokyo Standard Time'
   }
 }]
@@ -708,6 +730,6 @@ resource cpuVmStartSchedule 'Microsoft.Automation/automationAccounts/schedules@2
 
 output vnetId string = vnet.outputs.resourceId
 output vnetName string = vnet.outputs.name
-output logAnalyticsWorkspaceId string = logAnalytics.outputs.resourceId
+output logAnalyticsWorkspaceId string = logAnalyticsWorkspaceId
 output keyVaultName string = keyVault.outputs.name
 output storageAccountName string = storageAccount.outputs.name

@@ -23,6 +23,9 @@ param customerAllowIps array
 @description('Application Gateway の有効/無効')
 param enableAppGateway bool
 
+@description('Log Analytics Workspace リソース ID')
+param logAnalyticsWorkspaceId string
+
 // ============================================================================
 // 変数
 // ============================================================================
@@ -40,6 +43,9 @@ module nsgBastion 'br/public:avm/res/network/network-security-group:0.5.0' = {
     name: 'nsg-bas-${prefix}-${location}-001'
     location: location
     tags: tags
+    diagnosticSettings: [
+      { workspaceResourceId: logAnalyticsWorkspaceId }
+    ]
     securityRules: [
       { name: 'Allow-GatewayManager-Inbound', properties: { priority: 100, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '443', sourceAddressPrefix: 'GatewayManager', destinationAddressPrefix: '*' } }
       { name: 'Allow-AzureLoadBalancer-Inbound', properties: { priority: 110, direction: 'Inbound', access: 'Allow', protocol: 'Tcp', sourcePortRange: '*', destinationPortRange: '443', sourceAddressPrefix: 'AzureLoadBalancer', destinationAddressPrefix: '*' } }
@@ -65,6 +71,9 @@ module nsgAppGw 'br/public:avm/res/network/network-security-group:0.5.0' = if (e
     name: 'nsg-agw-${prefix}-${location}-001'
     location: location
     tags: tags
+    diagnosticSettings: [
+      { workspaceResourceId: logAnalyticsWorkspaceId }
+    ]
     securityRules: [
       { name: 'Allow-GatewayManager', properties: { priority: 100, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '65200-65535', sourceAddressPrefix: 'GatewayManager', destinationAddressPrefix: '*' } }
       { name: 'Allow-AzureLoadBalancer', properties: { priority: 110, direction: 'Inbound', access: 'Allow', protocol: '*', sourcePortRange: '*', destinationPortRange: '*', sourceAddressPrefix: 'AzureLoadBalancer', destinationAddressPrefix: '*' } }
@@ -85,6 +94,10 @@ module vnet 'br/public:avm/res/network/virtual-network:0.5.2' = {
     name: 'vnet-hub-${prefix}-${location}-001'
     location: location
     tags: tags
+    lock: { kind: 'CanNotDelete', name: 'lock-vnet-hub' }
+    diagnosticSettings: [
+      { workspaceResourceId: logAnalyticsWorkspaceId }
+    ]
     addressPrefixes: [hubAddressPrefix]
     subnets: union(
       [
@@ -121,6 +134,10 @@ module bastion 'br/public:avm/res/network/bastion-host:0.6.0' = {
     enableFileCopy: true
     enableIpConnect: true
     enableKerberos: false
+    lock: { kind: 'CanNotDelete', name: 'lock-bastion' }
+    diagnosticSettings: [
+      { workspaceResourceId: logAnalyticsWorkspaceId }
+    ]
   }
 }
 
@@ -133,6 +150,7 @@ module dnsZoneBlob 'br/public:avm/res/network/private-dns-zone:0.7.0' = {
   params: {
     name: 'privatelink.blob.${environment().suffixes.storage}'
     tags: tags
+    lock: { kind: 'CanNotDelete', name: 'lock-pdz-blob' }
     virtualNetworkLinks: [
       { virtualNetworkResourceId: vnet.outputs.resourceId, registrationEnabled: false }
     ]
@@ -144,6 +162,7 @@ module dnsZoneCogServices 'br/public:avm/res/network/private-dns-zone:0.7.0' = {
   params: {
     name: 'privatelink.cognitiveservices.azure.com'
     tags: tags
+    lock: { kind: 'CanNotDelete', name: 'lock-pdz-cog' }
     virtualNetworkLinks: [
       { virtualNetworkResourceId: vnet.outputs.resourceId, registrationEnabled: false }
     ]
@@ -155,6 +174,7 @@ module dnsZoneVault 'br/public:avm/res/network/private-dns-zone:0.7.0' = {
   params: {
     name: 'privatelink.vaultcore.azure.net'
     tags: tags
+    lock: { kind: 'CanNotDelete', name: 'lock-pdz-vault' }
     virtualNetworkLinks: [
       { virtualNetworkResourceId: vnet.outputs.resourceId, registrationEnabled: false }
     ]

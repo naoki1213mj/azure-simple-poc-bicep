@@ -38,7 +38,14 @@ fi
 if [ -z "${AZURE_PREFIX:-}" ]; then
   echo "エラー: AZURE_PREFIX が設定されていません。"
   echo "  azd env set AZURE_PREFIX <your-prefix>"
-  echo "  (英小文字/数字 7桁以内を推奨)"
+  echo "  (英小文字/数字 3-7 桁)"
+  exit 1
+fi
+
+# prefix の長さと文字種チェック
+if ! echo "${AZURE_PREFIX}" | grep -qE '^[a-z0-9]{3,7}$'; then
+  echo "エラー: AZURE_PREFIX は英小文字と数字のみ、3-7 文字で指定してください。"
+  echo "  現在の値: ${AZURE_PREFIX}"
   exit 1
 fi
 
