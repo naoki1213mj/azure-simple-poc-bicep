@@ -20,9 +20,8 @@
 | 3 | [DNS レコード登録手順書](dns-record-guide.md) | Azure DNS Zone への A レコード追加手順 |
 | 4 | [SSL 証明書発行手順書](ssl-certificate-issuance.md) | 自己署名 / Let's Encrypt / 商用 CA での証明書発行 |
 | 5 | [SSL 証明書更新手順書](ssl-certificate-renewal.md) | Key Vault + Application Gateway の SSL 証明書更新 |
-| 6 | [セキュリティエージェントインストール手順書](security-agent-install.md) | Nessus / MDE / Tanium 等のエージェント導入手順 |
-| 7 | [VM リモート接続ガイド](vm-remote-access.md) | SSH / トンネリング / Jupyter / marimo のセットアップ |
-| 8 | [ストレージアカウント ライフサイクル設定手順書](storage-lifecycle.md) | ログストレージのアーカイブ設定 |
-| 9 | [共有ストレージ作成手順書](shared-storage.md) | 複数 VM への NFS 共有ストレージマウント |
-| 10 | [ログ収集一覧](log-collection-reference.md) | 収集可能なログの種類・取得状況・設定箇所 |
-| 11 | [コスト見積もりガイド](cost-estimate.md) | dev / prod 環境の月額概算コスト・削減ヒント |
+| 6 | [VM リモート接続ガイド](vm-remote-access.md) | SSH / トンネリング / Jupyter / marimo のセットアップ |
+| 7 | [ストレージアカウント ライフサイクル設定手順書](storage-lifecycle.md) | ログストレージのアーカイブ設定 |
+| 8 | [共有ストレージ作成手順書](shared-storage.md) | 複数 VM への NFS 共有ストレージマウント |
+| 9 | [ログ収集一覧](log-collection-reference.md) | 収集可能なログの種類・取得状況・設定箇所 |
+| 10 | [コスト見積もりガイド](cost-estimate.md) | dev / prod 環境の月額概算コスト・削減ヒント |
